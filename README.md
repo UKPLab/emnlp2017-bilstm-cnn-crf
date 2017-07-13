@@ -1,4 +1,6 @@
-In the following repository you can find an LSTM-CRF implementation used for Sequence Tagging, e.g. POS-tagging, Chunking, or Named Entity Recognition. The implementation is based on Keras 1.x and can be run with theano or tensorflow as backend.
+# BiLSTM-CNN-CRF Implementation for Sequence Tagging
+
+In the following repository you can find an BiLSTM-CRF implementation used for Sequence Tagging, e.g. POS-tagging, Chunking, or Named Entity Recognition. The implementation is based on Keras 1.x and can be run with theano or tensorflow as backend.
 
 The hyperparameters of this network can be easily configured, so that you can re-run the proposed system by [Huang et al., Bidirectional LSTM-CRF Models for Sequence Tagging](https://arxiv.org/abs/1508.01991), [Ma and Hovy, End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF](https://arxiv.org/abs/1603.01354) and [Lample et al, Neural Architectures for Named Entity Recognition](https://arxiv.org/abs/1603.01360).
 
@@ -10,19 +12,49 @@ Pretrained models can be stored and loaded for inference. Simply execute `python
 
 This implementation can be used for **Multi-Task Learning**, i.e. learning simultanously several task with non-overlapping datasets. The file [Train_MultiTask.py](Train_MultiTask.py) depicts an example, how the LSTM-CRF network can be used to learn POS-tagging and Chunking simultaneously. The number of tasks is not limited. Tasks can be supervised at the same level or at different output level, for example, to re-implement the approach by [Sogaard and Goldberg, Deep multi-task learning with low level tasks supervised at lower layers](http://anthology.aclweb.org/P16-2038).
  
+ 
+# Citation
+If you find the implementation useful, please use the following citation:
+
+```
+@InProceedings{Reimers:2017:EMNLP,
+  author    = {Reimers, Nils, and Gurevych, Iryna},
+  title     = {{Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging}},
+  booktitle = {Proceedings of the 2017 Conference on Empirical Methods in Natural Language Processing (EMNLP)},
+  month     = {09},
+  year      = {2017},
+  address   = {Copenhagen, Denmark},
+  pages     = {(to-appear)},
+  url       = {https://www.ukp.tu-darmstadt.de/publications/?no_cache=1&tx_dppublications_pi1[publication]=10512&tx_dppublications_pi1[action]=show&tx_dppublications_pi1[controller]=Publication&cHash=9a77aee037275f2de1b77199d56e7bcd#dp_publications-single}
+}
+``` 
+
+> **Abstract:** This is a copy of my beautiful abstract. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+
+
+Contact person: Nils Reimers, reimers@ukp.informatik.tu-darmstadt.de
+
+https://www.ukp.tu-darmstadt.de/
+
+https://www.tu-darmstadt.de/
+
+
+Don't hesitate to send us an e-mail or report an issue, if something is broken (and it shouldn't be) or if you have further questions.
+
+> This repository contains experimental software and is published for the sole purpose of giving additional background details on the respective publication. 
 
 # Setup
 First clone or download the source code.
 
 Setup an virtual environment (optional):
 ``` 
-virtualenv foldername/.env
-source foldername/.env/bin/activate
+virtualenv .env
+source .env/bin/activate
 ```
+
 Install the requirements:
 ```
-cd foldername
-pip install -r requirements.txt
+.env/bin/pip install -r requirements.txt
 ```
 
 If everything works well, you can run `python Train_POS.py` to train a deep POS-tagger for the POS-tagset from universal dependencies.
