@@ -27,3 +27,6 @@ data/tac2015
 data/tempeval3
 data/wsj_pos
 data/removeComments.py
+/data/conll2003_ner_german
+/data/morphtag-german
+/data/morphtag-latin
