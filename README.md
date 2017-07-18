@@ -1,6 +1,6 @@
 # BiLSTM-CNN-CRF Implementation for Sequence Tagging
 
-In the following repository you can find an BiLSTM-CRF implementation used for Sequence Tagging, e.g. POS-tagging, Chunking, or Named Entity Recognition. The implementation is based on Keras 1.x and can be run with theano or tensorflow as backend.
+In the following repository you can find an BiLSTM-CRF implementation used for Sequence Tagging, e.g. POS-tagging, Chunking, or Named Entity Recognition. The implementation is based on Keras 1.x and can be run with Theano (0.9.0) or Tensorflow (0.12.1) as backend.
 
 The hyperparameters of this network can be easily configured, so that you can re-run the proposed system by [Huang et al., Bidirectional LSTM-CRF Models for Sequence Tagging](https://arxiv.org/abs/1508.01991), [Ma and Hovy, End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF](https://arxiv.org/abs/1603.01354) and [Lample et al, Neural Architectures for Named Entity Recognition](https://arxiv.org/abs/1603.01360).
 
@@ -44,9 +44,16 @@ Don't hesitate to send us an e-mail or report an issue, if something is broken (
 > This repository contains experimental software and is published for the sole purpose of giving additional background details on the respective publication. 
 
 # Setup
-First clone or download the source code.
+In order to run the code, you need either Python 2.7 or Python 3.6, Keras 1.2.x and as Backend either Theano 0.9.0 or TensorFlow 0.12.1. Note, at the moment the code **cannot** be run with Keras 2.x or Tensorflow 1.x!
 
-Setup an virtual environment (optional):
+If you wan't to use the character based word representation (**charEmbeddings**), you have to use the Theano backend. You can change this for Keras in the home folder in the file: `.keras/keras.json` by setting the option `backend` to `theano`. Another option is to set an environment variable:
+```
+export KERAS_BACKEND=theano
+```
+
+## Setup with virtual environment
+
+Setup a Python virtual environment (optional):
 ``` 
 virtualenv .env
 source .env/bin/activate
@@ -58,6 +65,9 @@ Install the requirements:
 ```
 
 If everything works well, you can run `python Train_POS.py` to train a deep POS-tagger for the POS-tagset from universal dependencies.
+
+## Setup with docker
+See the [docker-folder](docker/) for more information how to run these scripts in a docker container.
 
 
 # Training
@@ -141,7 +151,7 @@ The following parameters exists:
 * **optimizer**: Available optimizers: SGD, AdaGrad, AdaDelta, RMSProp, Adam, Nadam. Default value: `nadam`
 * **earlyStopping**: Early stoppig after certain number of epochs, if no improvement on the development set was achieved. Default value: 5
 * **addFeatureDimensions**: Dimension for additional features, that are passed to the network. Default value: 10
-* **charEmbeddings**: Available options: [None, 'CNN', 'LSTM']. If set to `None`, no character-based representations will be used. With `CNN`, the approach by [Ma & Hovy](https://arxiv.org/abs/1603.01354) using a CNN will be used. With `LSTM`, an LSTM network will be used to derive the character-based representation ([Lample et al.](https://arxiv.org/abs/1603.01360)). Default value: `None`
+* **charEmbeddings**: Available options: [None, 'CNN', 'LSTM']. If set to `None`, no character-based representations will be used. With `CNN`, the approach by [Ma & Hovy](https://arxiv.org/abs/1603.01354) using a CNN will be used. With `LSTM`, an LSTM network will be used to derive the character-based representation ([Lample et al.](https://arxiv.org/abs/1603.01360)). Default value: `None`. Note, **charEmbeddings** does only work with Theano as backend.
 	* **charEmbeddingsSize**: The dimension for characters, if the character-based representation is enabled. Default value: 30
 	* **charFilterSize**: If the CNN approach is used, this parameters defined the filter size, i.e. the output dimension of the convolution. Default: 30
 	* **charFilterLength**: If the CNN approach is used, this parameters defines the filter length. Default: 3

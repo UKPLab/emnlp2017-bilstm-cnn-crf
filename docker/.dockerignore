@@ -1,0 +1,5 @@
+models/
+pkl/
+data/
+*.*~
+*.pyc

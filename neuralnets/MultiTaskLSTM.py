@@ -19,7 +19,7 @@ import time
 import os
 import random
 import logging
-from keraslayers.ChainCRF import ChainCRF
+from .keraslayers.ChainCRF import ChainCRF
 
 
 class MultiTaskLSTM:    
@@ -38,7 +38,7 @@ class MultiTaskLSTM:
         datasetTuples: dict {name: (dataset, labelKey)}
         """
         self.embeddings = embeddings
-        self.modelNames = datasetTuples.keys()
+        self.modelNames = list(datasetTuples.keys())
         self.evaluateModelNames = []
         self.datasets = {}
         self.labelKeys = {}
@@ -104,12 +104,12 @@ class MultiTaskLSTM:
             logging.info("Words padded to %d charachters" % (self.maxCharLen))
             
             charset = None
-            for dataset in self.datasets.itervalues():
+            for dataset in self.datasets.values():
                 if charset == None:
                     charset = dataset['mappings']['characters']
                 else: #Ensure that the character to int mapping is equivalent
                     tmpCharset = dataset['mappings']['characters']
-                    for key, value in charset.iteritems():
+                    for key, value in charset.items():
                         if key not in tmpCharset or tmpCharset[key] != value:
                             logging.info("Two dataset with different characters mapping have been passed to the model")
                             assert("False")
@@ -363,7 +363,7 @@ class MultiTaskLSTM:
         ranges = {}
         
         for modelName in self.modelNames: 
-            rndRange = range(len(self.datasets[modelName]['trainMatrix']))
+            rndRange = list(range(len(self.datasets[modelName]['trainMatrix'])))
             random.shuffle(rndRange)
             ranges[modelName] = rndRange
         
@@ -458,7 +458,7 @@ class MultiTaskLSTM:
         
         sentenceLengths = self.getSentenceLengths(sentences)
         
-        for indices in sentenceLengths.itervalues():   
+        for indices in sentenceLengths.values():   
             nnInput = []                  
             for featureName in self.featureNames:                
                 inputData = np.asarray([sentences[idx][featureName] for idx in indices])
@@ -543,13 +543,13 @@ class MultiTaskLSTM:
         """ Pads the character representations of the words to the longest word in the dataset """
         #Find the longest word in the dataset
         maxCharLen = 0
-        for dataset in self.datasets.itervalues():
+        for dataset in self.datasets.values():
             for data in [dataset['trainMatrix'], dataset['devMatrix'], dataset['testMatrix']]:            
                 for sentence in data:
                     for token in sentence['characters']:
                         maxCharLen = max(maxCharLen, len(token))
           
-        for dataset in self.datasets.itervalues():   
+        for dataset in self.datasets.values():   
             for data in [dataset['trainMatrix'], dataset['devMatrix'], dataset['testMatrix']]:       
                 #Pad each other word with zeros
                 for sentenceIdx in range(len(data)):

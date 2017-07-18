@@ -1,0 +1,15 @@
+FROM python:3.6
+
+WORKDIR /usr/src/app
+
+COPY ./requirements.txt ./requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Change backend in keras.json to theano
+RUN mkdir /root/.keras
+COPY ./keras.json /root/.keras/keras.json
+
+# Download NLTK tokenization model
+RUN python -m nltk.downloader -d /usr/local/share/nltk_data punkt
+
+VOLUME /usr/src/app

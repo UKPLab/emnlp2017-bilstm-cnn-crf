@@ -18,10 +18,17 @@ import random
 import time
 import math
 import numpy as np
-from keraslayers.ChainCRF import ChainCRF
-import util.BIOF1Validation as BIOF1Validation
 import logging
-import cPickle as pkl
+
+from .keraslayers.ChainCRF import ChainCRF
+import util.BIOF1Validation as BIOF1Validation
+
+
+import sys
+if (sys.version_info > (3, 0)):
+    import pickle as pkl
+else: #Python 2.7 imports
+    import cPickle as pkl
 
 class BiLSTM:
     additionalFeatures = []
@@ -39,6 +46,8 @@ class BiLSTM:
     devAndTestEqual = False
     resultsOut = None
     modelSavePath = None
+    maxCharLen = None
+    
     params = {'miniBatchSize': 32, 'dropout': [0.25, 0.25], 'classifier': 'Softmax', 'LSTM-Size': [100], 'optimizer': 'nadam', 'earlyStopping': 5, 'addFeatureDimensions': 10, 
                 'charEmbeddings': None, 'charEmbeddingsSize':30, 'charFilterSize': 30, 'charFilterLength':3, 'charLSTMSize': 25, 'clipvalue': 0, 'clipnorm': 1 } #Default params
    
@@ -105,7 +114,7 @@ class BiLSTM:
         
         sentenceLengths = self.getSentenceLengths(sentences)
         
-        for senLength, indices in sentenceLengths.iteritems():        
+        for senLength, indices in sentenceLengths.items():        
             
             if self.skipOneTokenSentences and senLength == 1:
                 if 'O' in self.label2Idx:
@@ -140,7 +149,7 @@ class BiLSTM:
     
     # ------------ Some help functions to train on sentences -----------
     def online_iterate_dataset(self, dataset, labelKey): 
-        idxRange = range(0, len(dataset))
+        idxRange = list(range(0, len(dataset)))
         random.shuffle(idxRange)
         
         for idx in idxRange:
@@ -176,7 +185,7 @@ class BiLSTM:
     def batch_iterate_dataset(self, dataset, labelKey):       
         if self.trainSentenceLengths == None:
             self.trainSentenceLengths = self.getSentenceLengths(dataset)
-            self.trainSentenceLengthsKeys = self.trainSentenceLengths.keys()
+            self.trainSentenceLengthsKeys = list(self.trainSentenceLengths.keys())
             
         trainSentenceLengths = self.trainSentenceLengths
         trainSentenceLengthsKeys = self.trainSentenceLengthsKeys

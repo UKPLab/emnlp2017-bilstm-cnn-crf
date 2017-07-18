@@ -1,12 +1,20 @@
+from __future__ import print_function
 import numpy as np
-import cPickle as pkl
 import gzip
 import os.path
 import nltk
-from WordEmbeddings import wordNormalize
 import logging
 from nltk import FreqDist
-from CoNLL import readCoNLL
+
+from .WordEmbeddings import wordNormalize
+from .CoNLL import readCoNLL
+
+import sys
+if (sys.version_info > (3, 0)):
+    import pickle as pkl
+else: #Python 2.7 imports
+    import cPickle as pkl
+    from io import open
 
 def perpareDataset(embeddingsPath, datasetFiles, frequencyThresholdUnknownTokens=50, reducePretrainedEmbeddings=False, commentSymbol=None):
     """
@@ -75,10 +83,7 @@ def perpareDataset(embeddingsPath, datasetFiles, frequencyThresholdUnknownTokens
     word2Idx = {}
     embeddings = []
     
-    if embeddingsPath.endswith(".gz"):
-        embeddingsIn = gzip.open(embeddingsPath, 'rb')
-    else:
-        embeddingsIn = open(embeddingsPath)
+    embeddingsIn = gzip.open(embeddingsPath, "rt") if embeddingsPath.endswith('.gz') else open(embeddingsPath, encoding="utf8")
     
     for line in embeddingsIn:
         split = line.strip().split(" ")
@@ -224,9 +229,9 @@ def createMatrices(sentences, mappings, padOneTokenSentence=True):
     paddedSentences = 0
 
     for sentence in sentences:
-        row = {name: [] for name in mappings.keys()+['raw_tokens']}
+        row = {name: [] for name in list(mappings.keys())+['raw_tokens']}
         
-        for mapping, str2Idx in mappings.iteritems():    
+        for mapping, str2Idx in mappings.items():    
             if mapping not in sentence:
                 continue
                     
@@ -261,7 +266,7 @@ def createMatrices(sentences, mappings, padOneTokenSentence=True):
                 
         if len(row['tokens']) == 1 and padOneTokenSentence:
             paddedSentences += 1
-            for mapping, str2Idx in mappings.iteritems():
+            for mapping, str2Idx in mappings.items():
                 if mapping.lower() == 'tokens':
                     row['tokens'].append(mappings['tokens']['PADDING_TOKEN'])
                     row['raw_tokens'].append('PADDING_TOKEN')
@@ -320,7 +325,7 @@ def createPklFiles(datasetFiles, word2Idx, casing2Idx, cols, commentSymbol=None,
     return data
 
 def createMappings(sentences):
-    sentenceKeys = sentences[0].keys()
+    sentenceKeys = list(sentences[0].keys())
     sentenceKeys.remove('tokens')
     
     

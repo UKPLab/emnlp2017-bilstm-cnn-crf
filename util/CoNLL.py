@@ -27,9 +27,9 @@ def readCoNLL(inputPath, cols, commentSymbol=None, valTransformation=None):
     """
     sentences = []
     
-    sentenceTemplate = {name: [] for name in cols.itervalues()}
+    sentenceTemplate = {name: [] for name in cols.values()}
     
-    sentence = {name: [] for name in sentenceTemplate.iterkeys()}
+    sentence = {name: [] for name in sentenceTemplate.keys()}
     
     newData = False
     
@@ -39,12 +39,12 @@ def readCoNLL(inputPath, cols, commentSymbol=None, valTransformation=None):
             if newData:      
                 sentences.append(sentence)
                     
-                sentence = {name: [] for name in sentenceTemplate.iterkeys()}
+                sentence = {name: [] for name in sentenceTemplate.keys()}
                 newData = False
             continue
         
         splits = line.split()
-        for colIdx, colName in cols.iteritems():
+        for colIdx, colName in cols.items():
             val = splits[colIdx]
             
             if valTransformation != None:
@@ -58,7 +58,7 @@ def readCoNLL(inputPath, cols, commentSymbol=None, valTransformation=None):
     if newData:        
         sentences.append(sentence)
             
-    for name in cols.itervalues():
+    for name in cols.values():
         if name.endswith('_BIO'):
             iobesName = name[0:-4]+'_class'  
             

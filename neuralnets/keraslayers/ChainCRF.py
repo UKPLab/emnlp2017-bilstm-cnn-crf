@@ -5,6 +5,7 @@ Author: https://github.com/fchollet/keras/pull/4621/files
 """
 
 from __future__ import absolute_import
+from __future__ import print_function
 
 from keras import backend as K
 from keras import initializations, regularizers, constraints
@@ -432,6 +433,6 @@ if __name__ == '__main__':
     
     
     
-    print x
-    print y
+    print(x)
+    print(y)
     
