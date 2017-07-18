@@ -46,7 +46,7 @@ Don't hesitate to send us an e-mail or report an issue, if something is broken (
 # Setup
 In order to run the code, you need either Python 2.7 or Python 3.6, Keras 1.2.x and as Backend either Theano 0.9.0 or TensorFlow 0.12.1. Note, at the moment the code **cannot** be run with Keras 2.x or Tensorflow 1.x!
 
-If you wan't to use the character based word representation (**charEmbeddings**), you have to use the Theano backend. You can change this for Keras in the home folder in the file: `.keras/keras.json` by setting the option `backend` to `theano`. Another option is to set an environment variable:
+If you want to use the character based word representations (**charEmbeddings**), you have to use the **Theano backend**. You can change this for Keras in the home folder in the file: `.keras/keras.json` by setting the option `backend` to `theano`. Another option is to set an environment variable:
 ```
 export KERAS_BACKEND=theano
 ```
