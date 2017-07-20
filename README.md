@@ -163,4 +163,5 @@ For the MutliTaskLSTM.py-network, the following additional parameter exists:
 * **customClassifier**: A dictionary, that maps each dataset an individual classifier. For example, the POS tag could use a Softmax-classifier, while the Chunking dataset is trained with a CRF-classifier.
 
 
-
+# Acknowledgments
+This code uses the CRF-Implementation of [Philipp Gross](https://github.com/phipleg) from the Keras Pull Request [#4621](https://github.com/fchollet/keras/pull/4621). Thank you for contributing this to the community.
