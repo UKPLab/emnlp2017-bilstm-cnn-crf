@@ -18,7 +18,7 @@ This implementation can be used for **Multi-Task Learning**, i.e. learning simul
 You can find more information on this code and how to tune a BiLSTM-CNN-CRF architecture for sequence tagging in this publication: [Reimers and Gurevych, 2017, Optimal Hyperparameters for Deep LSTM-Networks for Sequence Labeling Tasks](https://arxiv.org/abs/1707.06799).
 
 A condensed version of this paper is presented at EMNLP 2017:
-[Reimers and Gurevych, 2017, Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://www.ukp.tu-darmstadt.de/publications/?no_cache=1&tx_dppublications_pi1[publication]=10512&tx_dppublications_pi1[action]=show&tx_dppublications_pi1[controller]=Publication&cHash=9a77aee037275f2de1b77199d56e7bcd#dp_publications-single).
+[Reimers and Gurevych, 2017, Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://www.ukp.tu-darmstadt.de/fileadmin/user_upload/Group_UKP/publikationen/2017/2017_EMNLP_Reimers_Reporting_Score_Distributions_Makes_a_Difference.pdf).
 
 If you find the implementation useful, please use the following citation:
 
