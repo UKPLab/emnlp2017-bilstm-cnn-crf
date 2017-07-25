@@ -13,7 +13,13 @@ Pretrained models can be stored and loaded for inference. Simply execute `python
 This implementation can be used for **Multi-Task Learning**, i.e. learning simultanously several task with non-overlapping datasets. The file [Train_MultiTask.py](Train_MultiTask.py) depicts an example, how the LSTM-CRF network can be used to learn POS-tagging and Chunking simultaneously. The number of tasks is not limited. Tasks can be supervised at the same level or at different output level, for example, to re-implement the approach by [Sogaard and Goldberg, Deep multi-task learning with low level tasks supervised at lower layers](http://anthology.aclweb.org/P16-2038).
  
  
-# Citation
+# References
+
+You can find more information on this code and how to tune a BiLSTM-CNN-CRF architecture for sequence tagging in this publication: [Reimers and Gurevych, 2017, Optimal Hyperparameters for Deep LSTM-Networks for Sequence Labeling Tasks](https://arxiv.org/abs/1707.06799).
+
+A condensed version of this paper is presented at EMNLP 2017:
+[Reimers and Gurevych, 2017, Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://www.ukp.tu-darmstadt.de/publications/?no_cache=1&tx_dppublications_pi1[publication]=10512&tx_dppublications_pi1[action]=show&tx_dppublications_pi1[controller]=Publication&cHash=9a77aee037275f2de1b77199d56e7bcd#dp_publications-single).
+
 If you find the implementation useful, please use the following citation:
 
 ```
@@ -29,7 +35,7 @@ If you find the implementation useful, please use the following citation:
 }
 ``` 
 
-> **Abstract:** This is a copy of my beautiful abstract. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+> **Abstract:** In this paper we show that reporting a single performance score is insufficient to compare non-deterministic approaches. We demonstrate this for common sequence tagging tasks that the seed value for the random number generator can result in statistically significant (p < 10^{-4}) differences for state-of-the-art systems. For two recent systems for NER, we observe an absolute difference of one percentage point F1-score depending on the selected seed value, making these systems perceived either as state-of-the-art or mediocre. Instead of publishing and reporting single performance scores, we propose to compare score distributions based on multiple executions. Based on the evaluation of 50.000 LSTM-networks for five sequence tagging tasks, we present network architectures that perform superior as well as produce results with higher stability on unseen data.
 
 
 Contact person: Nils Reimers, reimers@ukp.informatik.tu-darmstadt.de
