@@ -85,17 +85,24 @@ def perpareDataset(embeddingsPath, datasetFiles, frequencyThresholdUnknownTokens
     
     embeddingsIn = gzip.open(embeddingsPath, "rt") if embeddingsPath.endswith('.gz') else open(embeddingsPath, encoding="utf8")
     
+    embeddingsDimension = None
+    
     for line in embeddingsIn:
-        split = line.strip().split(" ")
+        split = line.rstrip().split(" ")
         word = split[0]
+        
+        if embeddingsDimension == None:
+            embeddingsDimension = len(split)-1
+            
+        assert( (len(split)-1) == embeddingsDimension)  #Assure that all lines in the embeddings file are of the same length
         
         if len(word2Idx) == 0: #Add padding+unknown
             word2Idx["PADDING_TOKEN"] = len(word2Idx)
-            vector = np.zeros(len(split)-1) 
+            vector = np.zeros(embeddingsDimension) 
             embeddings.append(vector)
             
             word2Idx["UNKNOWN_TOKEN"] = len(word2Idx)
-            vector = np.random.uniform(-0.25, 0.25, len(split)-1) #Alternativ -sqrt(3/dim) ... sqrt(3/dim)
+            vector = np.random.uniform(-0.25, 0.25, embeddingsDimension) #Alternativ -sqrt(3/dim) ... sqrt(3/dim)
             embeddings.append(vector)
     
         

@@ -2,6 +2,9 @@
 
 In the following repository you can find an BiLSTM-CRF implementation used for Sequence Tagging, e.g. POS-tagging, Chunking, or Named Entity Recognition. The implementation is based on Keras 1.x and can be run with Theano (0.9.0) or Tensorflow (0.12.1) as backend.
 
+The architecture is described in our papers [Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://arxiv.org/abs/1707.09861) and [Optimal Hyperparameters for Deep LSTM-Networks for Sequence Labeling Tasks](https://arxiv.org/abs/1707.06799).
+
+
 The hyperparameters of this network can be easily configured, so that you can re-run the proposed system by [Huang et al., Bidirectional LSTM-CRF Models for Sequence Tagging](https://arxiv.org/abs/1508.01991), [Ma and Hovy, End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF](https://arxiv.org/abs/1603.01354) and [Lample et al, Neural Architectures for Named Entity Recognition](https://arxiv.org/abs/1603.01360).
 
 The implementation was optimized for **performance** using a smart shuffeling of the trainings data to group sentences with same length together. This increases the training speed by multiple factors in comparison to the implementations by Ma or Lample.
@@ -14,7 +17,7 @@ This implementation can be used for **Multi-Task Learning**, i.e. learning simul
  
  
 # Citation
-If you find the implementation useful, please use the following citation:
+If you find the implementation useful, please cite the following paper: [Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://arxiv.org/abs/1707.09861)
 
 ```
 @InProceedings{Reimers:2017:EMNLP,
@@ -25,7 +28,7 @@ If you find the implementation useful, please use the following citation:
   year      = {2017},
   address   = {Copenhagen, Denmark},
   pages     = {(to-appear)},
-  url       = {https://www.ukp.tu-darmstadt.de/publications/?no_cache=1&tx_dppublications_pi1[publication]=10512&tx_dppublications_pi1[action]=show&tx_dppublications_pi1[controller]=Publication&cHash=9a77aee037275f2de1b77199d56e7bcd#dp_publications-single}
+  url       = {https://arxiv.org/abs/1707.09861}
 }
 ``` 
 
