@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 
 """
-Author: https://github.com/fchollet/keras/pull/4621/files
+Author: Philipp Gross, https://github.com/fchollet/keras/pull/4621/files
 """
 
 from __future__ import absolute_import

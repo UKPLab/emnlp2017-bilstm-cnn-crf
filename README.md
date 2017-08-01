@@ -16,6 +16,7 @@ Pretrained models can be stored and loaded for inference. Simply execute `python
 This implementation can be used for **Multi-Task Learning**, i.e. learning simultanously several task with non-overlapping datasets. The file [Train_MultiTask.py](Train_MultiTask.py) depicts an example, how the LSTM-CRF network can be used to learn POS-tagging and Chunking simultaneously. The number of tasks is not limited. Tasks can be supervised at the same level or at different output level, for example, to re-implement the approach by [Sogaard and Goldberg, Deep multi-task learning with low level tasks supervised at lower layers](http://anthology.aclweb.org/P16-2038).
  
  
+
 # Citation
 If you find the implementation useful, please cite the following paper: [Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://arxiv.org/abs/1707.09861)
 
@@ -32,7 +33,7 @@ If you find the implementation useful, please cite the following paper: [Reporti
 }
 ``` 
 
-> **Abstract:** This is a copy of my beautiful abstract. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur. Excepteur sint occaecat cupidatat non proident, sunt in culpa qui officia deserunt mollit anim id est laborum.
+> **Abstract:** In this paper we show that reporting a single performance score is insufficient to compare non-deterministic approaches. We demonstrate this for common sequence tagging tasks that the seed value for the random number generator can result in statistically significant (p < 10^{-4}) differences for state-of-the-art systems. For two recent systems for NER, we observe an absolute difference of one percentage point F1-score depending on the selected seed value, making these systems perceived either as state-of-the-art or mediocre. Instead of publishing and reporting single performance scores, we propose to compare score distributions based on multiple executions. Based on the evaluation of 50.000 LSTM-networks for five sequence tagging tasks, we present network architectures that perform superior as well as produce results with higher stability on unseen data.
 
 
 Contact person: Nils Reimers, reimers@ukp.informatik.tu-darmstadt.de
@@ -166,4 +167,5 @@ For the MutliTaskLSTM.py-network, the following additional parameter exists:
 * **customClassifier**: A dictionary, that maps each dataset an individual classifier. For example, the POS tag could use a Softmax-classifier, while the Chunking dataset is trained with a CRF-classifier.
 
 
-
+# Acknowledgments
+This code uses the CRF-Implementation of [Philipp Gross](https://github.com/phipleg) from the Keras Pull Request [#4621](https://github.com/fchollet/keras/pull/4621). Thank you for contributing this to the community.
