@@ -94,7 +94,9 @@ def perpareDataset(embeddingsPath, datasetFiles, frequencyThresholdUnknownTokens
         if embeddingsDimension == None:
             embeddingsDimension = len(split)-1
             
-        assert( (len(split)-1) == embeddingsDimension)  #Assure that all lines in the embeddings file are of the same length
+        if (len(split)-1) != embeddingsDimension:  #Assure that all lines in the embeddings file are of the same length
+            print("ERROR: A line in the embeddings file had more or less  dimensions than expected. Skip token.")
+            continue
         
         if len(word2Idx) == 0: #Add padding+unknown
             word2Idx["PADDING_TOKEN"] = len(word2Idx)
