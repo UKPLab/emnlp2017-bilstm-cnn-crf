@@ -28,8 +28,8 @@ If you find the implementation useful, please cite the following paper: [Reporti
   month     = {09},
   year      = {2017},
   address   = {Copenhagen, Denmark},
-  pages     = {(to-appear)},
-  url       = {https://arxiv.org/abs/1707.09861}
+  pages     = {338--348},
+  url       = {http://aclweb.org/anthology/D17-1035}
 }
 ``` 
 
