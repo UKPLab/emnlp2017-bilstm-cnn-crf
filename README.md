@@ -60,7 +60,7 @@ export KERAS_BACKEND=theano
 TypeError: unsupported operand type(s) for *: 'IndexedSlices' and 'int'
 ```
 
-Solution: Use Theano as backend. 
+Solution: Use Theano as backend or don't use character based representations using CNN (parameter: charEmbeddings). 
 
 It would be highly appriated if someone could port the code (the CRF-layer) to Keras 2.x and Tensorflow 1.x.
 
