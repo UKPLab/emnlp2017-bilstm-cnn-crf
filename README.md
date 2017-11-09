@@ -55,6 +55,15 @@ If you want to use the character based word representations (**charEmbeddings**)
 export KERAS_BACKEND=theano
 ```
 
+**Note:** The CNN for character based representations doesn't work with Tensorflow. You will get the error message:
+```
+TypeError: unsupported operand type(s) for *: 'IndexedSlices' and 'int'
+```
+
+Solution: Use Theano as backend. 
+
+It would be highly appriated if someone could port the code (the CRF-layer) to Keras 2.x and Tensorflow 1.x.
+
 ## Setup with virtual environment
 
 Setup a Python virtual environment (optional):
