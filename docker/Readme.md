@@ -17,7 +17,7 @@ To run our code, we first must start the container and mount the current folder 
 docker run -it -v ${PWD}:/usr/src/app bilstm bash
 ```
 
-The command `-v ${PWD}:/usr/src/app` maps the current folder ${PWD} into the docker container at the position `/user/src/app`. Changes made on the host system as well as in the container are synchronized. We can change / add / delete files in the current folder and its subfolder and can access those files directly in the docker container. 
+The command `-v ${PWD}:/usr/src/app` maps the current folder ${PWD} into the docker container at the position `/usr/src/app`. Changes made on the host system as well as in the container are synchronized. We can change / add / delete files in the current folder and its subfolder and can access those files directly in the docker container. 
 
 
 
