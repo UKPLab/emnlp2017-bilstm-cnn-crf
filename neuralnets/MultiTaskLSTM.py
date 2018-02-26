@@ -2,7 +2,7 @@
 A bidirectional LSTM with optional CRF and character-based presentation for NLP sequence tagging used for multi-task learning.
 
 Author: Nils Reimers
-License: CC BY-SA 3.0
+License: Apache-2.0
 """
 
 from __future__ import print_function
