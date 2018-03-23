@@ -578,7 +578,7 @@ class BiLSTM:
             if 'additionalFeatures' in f.attrs:
                 self.additionalFeatures = json.loads(f.attrs['additionalFeatures'])
                 
-            if 'maxCharLen' in f.attrs and f.attrs['maxCharLen'] != None:
+            if 'maxCharLen' in f.attrs and f.attrs['maxCharLen'] != None and f.attrs['maxCharLen'] != 'None':
                 self.maxCharLen = int(f.attrs['maxCharLen'])
             
         self.model = model        
