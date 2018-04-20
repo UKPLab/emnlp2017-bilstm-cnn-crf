@@ -44,13 +44,25 @@ params = {'classifier': ['CRF'], 'LSTM-Size': [100], 'dropout': (0.25, 0.25)}
 model = BiLSTM(params)
 model.setMappings(mappings, embeddings)
 model.setDataset(datasets, data)
-model.modelSavePath = "models/[ModelName]_[DevScore]_[TestScore]_[Epoch].h5"
+model.storeResults('results/unidep_pos_results.csv') #Path to store performance scores for dev / test
+model.modelSavePath = "models/[ModelName]_[DevScore]_[TestScore]_[Epoch].h5" #Path to store models
 model.fit(epochs=25)
 ```
 
 `params` defines the hyperparameters of the network. See [Hyperparameters.md](Hyperparameters.md) for more details.
 
 `model.modelSavePath` defines the path where the trained models should be stored. `[ModelName]` is replaced by the name of your dataset, `[DevScore]` with the score on the development set, `[TestScore]` with the score on the test set and `[Epoch]` is replaced by the epoch.
+
+## Storing performance Scores
+By calling the `model.storeResults()` we specify the path where the performance scores during training should be stored. The file contains for each training epoch a line that contains the following information:
+- epoch
+- dataset name
+- Performance on development set
+- Performance on test set
+- Highest development set performance so far
+- Test performance for epoch with highest development score
+
+
 
 ## Training BIO-Encoded Labels
 If you want to perform chunking instead of POS-tagging, simple change the `datasets` variable (`Train_Chunking.py`):

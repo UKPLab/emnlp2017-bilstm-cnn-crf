@@ -64,6 +64,7 @@ params = {'classifier': ['CRF'], 'LSTM-Size': [100, 100], 'dropout': (0.25, 0.25
 model = BiLSTM(params)
 model.setMappings(mappings, embeddings)
 model.setDataset(datasets, data)
+model.storeResults('results/conll2000_chunking.csv') #Path to store performance scores for dev / test
 model.modelSavePath = "models/[ModelName]_[DevScore]_[TestScore]_[Epoch].h5"
 model.fit(epochs=25)
 
