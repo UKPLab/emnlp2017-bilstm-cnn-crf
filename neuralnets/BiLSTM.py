@@ -1,269 +1,126 @@
 """
-A bidirectional LSTM with optional CRF and character-based presentation for NLP sequence tagging.
+A bidirectional LSTM with optional CRF and character-based presentation for NLP sequence tagging used for multi-task learning.
 
 Author: Nils Reimers
 License: Apache-2.0
 """
 
 from __future__ import print_function
+from util import BIOF1Validation
 
 import keras
-from keras.models import Sequential
-from keras.layers import *
 from keras.optimizers import *
-
-import os
-import sys
-import random
-import time
+from keras.models import Model
+from keras.layers import *
 import math
 import numpy as np
+import sys
+import gc
+import time
+import os
+import random
 import logging
 
 from .keraslayers.ChainCRF import ChainCRF
-import util.BIOF1Validation as BIOF1Validation
 
 
-import sys
-if (sys.version_info > (3, 0)):
-    import pickle as pkl
-else: #Python 2.7 imports
-    import cPickle as pkl
+
 
 class BiLSTM:
-    additionalFeatures = []
-    learning_rate_updates = {'sgd': {1: 0.1, 3:0.05, 5:0.01} } 
-    verboseBuild = True
+    def __init__(self, params=None):
+        # modelSavePath = Path for storing models, resultsSavePath = Path for storing output labels while training
+        self.models = None
+        self.modelSavePath = None
+        self.resultsSavePath = None
 
-    model = None 
-    epoch = 0 
-    skipOneTokenSentences=True
-    
-    dataset = None
-    embeddings = None
-    labelKey = None
-    writeOutput = False    
-    devAndTestEqual = False
-    resultsOut = None
-    modelSavePath = None
-    maxCharLen = None
-    
-    params = {'miniBatchSize': 32, 'dropout': [0.25, 0.25], 'classifier': 'Softmax', 'LSTM-Size': [100], 'optimizer': 'nadam', 'earlyStopping': 5, 'addFeatureDimensions': 10, 
-                'charEmbeddings': None, 'charEmbeddingsSize':30, 'charFilterSize': 30, 'charFilterLength':3, 'charLSTMSize': 25, 'clipvalue': 0, 'clipnorm': 1 } #Default params
-   
 
-    def __init__(self,   params=None):        
+        # Hyperparameters for the network
+        defaultParams = {'dropout': (0.5,0.5), 'classifier': ['Softmax'], 'LSTM-Size': (100,), 'customClassifier': {},
+                         'optimizer': 'adam',
+                         'charEmbeddings': None, 'charEmbeddingsSize': 30, 'charFilterSize': 30, 'charFilterLength': 3, 'charLSTMSize': 25, 'maxCharLength': 25,
+                         'useTaskIdentifier': False, 'clipvalue': 0, 'clipnorm': 1,
+                         'earlyStopping': 5, 'miniBatchSize': 32,
+                         'featureNames': ['tokens', 'casing'], 'addFeatureDimensions': 10}
         if params != None:
-            self.params.update(params)
-        
-        logging.info("BiLSTM model initialized with parameters: %s" % str(self.params))
-        
-    def setMappings(self, embeddings, mappings):
-        self.mappings = mappings
+            defaultParams.update(params)
+        self.params = defaultParams
+
+
+
+    def setMappings(self, mappings, embeddings):
         self.embeddings = embeddings
-        self.idx2Word = {v: k for k, v in self.mappings['tokens'].items()}
+        self.mappings = mappings
+
+    def setDataset(self, datasets, data):
+        self.datasets = datasets
+        self.data = data
+
+        # Create some helping variables
+        self.mainModelName = None
+        self.epoch = 0
+        self.learning_rate_updates = {'sgd': {1: 0.1, 3: 0.05, 5: 0.01}}
+        self.modelNames = list(self.datasets.keys())
+        self.evaluateModelNames = []
+        self.labelKeys = {}
+        self.idx2Labels = {}
+        self.trainMiniBatchRanges = None
+        self.trainSentenceLengthRanges = None
+
+
+        for modelName in self.modelNames:
+            labelKey = self.datasets[modelName]['label']
+            self.labelKeys[modelName] = labelKey
+            self.idx2Labels[modelName] = {v: k for k, v in self.mappings[labelKey].items()}
+            
+            if self.datasets[modelName]['evaluate']:
+                self.evaluateModelNames.append(modelName)
+            
+            logging.info("--- %s ---" % modelName)
+            logging.info("%d train sentences" % len(self.data[modelName]['trainMatrix']))
+            logging.info("%d dev sentences" % len(self.data[modelName]['devMatrix']))
+            logging.info("%d test sentences" % len(self.data[modelName]['testMatrix']))
+            
         
-    def setTrainDataset(self, dataset, labelKey):
-        self.dataset = dataset
-        self.labelKey = labelKey
-        self.label2Idx = self.mappings[labelKey]  
-        self.idx2Label = {v: k for k, v in self.label2Idx.items()}
-        self.mappings['label'] = self.mappings[labelKey]
-                        
-    def padCharacters(self):
-        """ Pads the character representations of the words to the longest word in the dataset """
-        #Find the longest word in the dataset
-        maxCharLen = 0
-        for data in [self.dataset['trainMatrix'], self.dataset['devMatrix'], self.dataset['testMatrix']]:            
-            for sentence in data:
-                for token in sentence['characters']:
-                    maxCharLen = max(maxCharLen, len(token))
+        if len(self.evaluateModelNames) == 1:
+            self.mainModelName = self.evaluateModelNames[0]
              
-        for data in [self.dataset['trainMatrix'], self.dataset['devMatrix'], self.dataset['testMatrix']]:       
-            #Pad each other word with zeros
-            for sentenceIdx in range(len(data)):
-                for tokenIdx in range(len(data[sentenceIdx]['characters'])):
-                    token = data[sentenceIdx]['characters'][tokenIdx]
-                    data[sentenceIdx]['characters'][tokenIdx] = np.pad(token, (0,maxCharLen-len(token)), 'constant')
-    
-        self.maxCharLen = maxCharLen
+        self.casing2Idx = self.mappings['casing']
+
         
-    def trainModel(self):
-        if self.model == None:
-            self.buildModel()        
-            
-        trainMatrix = self.dataset['trainMatrix'] 
-        self.epoch += 1
-        
-        if self.params['optimizer'] in self.learning_rate_updates and self.epoch in self.learning_rate_updates[self.params['optimizer']]:
-            K.set_value(self.model.optimizer.lr, self.learning_rate_updates[self.params['optimizer']][self.epoch])          
-            logging.info("Update Learning Rate to %f" % (K.get_value(self.model.optimizer.lr)))
-        
-        iterator = self.online_iterate_dataset(trainMatrix, self.labelKey) if self.params['miniBatchSize'] == 1 else self.batch_iterate_dataset(trainMatrix, self.labelKey)
-        
-        for batch in iterator: 
-            labels = batch[0]
-            nnInput = batch[1:]                
-            self.model.train_on_batch(nnInput, labels)   
-            
-    def predictLabels(self, sentences):
-        if self.model == None:
-            self.buildModel()
-            
-        predLabels = [None]*len(sentences)
-        
-        sentenceLengths = self.getSentenceLengths(sentences)
-        
-        for senLength, indices in sentenceLengths.items():        
-            
-            if self.skipOneTokenSentences and senLength == 1:
-                if 'O' in self.label2Idx:
-                    dummyLabel = self.label2Idx['O']
-                else:
-                    dummyLabel = 0
-                predictions = [[dummyLabel]] * len(indices) #Tag with dummy label
-            else:          
-                
-                features = ['tokens', 'casing']+self.additionalFeatures                
-                inputData = {name: [] for name in features}              
-                
-                for idx in indices:                    
-                    for name in features:
-                        inputData[name].append(sentences[idx][name])                 
-                                                    
-                for name in features:
-                    inputData[name] = np.asarray(inputData[name])
-                    
-                    
-                predictions = self.model.predict([inputData[name] for name in features], verbose=False)
-                predictions = predictions.argmax(axis=-1) #Predict classes      
-                
-            
-            predIdx = 0
-            for idx in indices:
-                predLabels[idx] = predictions[predIdx]    
-                predIdx += 1   
-        
-        return predLabels
-    
-    
-    # ------------ Some help functions to train on sentences -----------
-    def online_iterate_dataset(self, dataset, labelKey): 
-        idxRange = list(range(0, len(dataset)))
-        random.shuffle(idxRange)
-        
-        for idx in idxRange:
-                labels = []                
-                features = ['tokens', 'casing']+self.additionalFeatures                
-                
-                labels = dataset[idx][labelKey]
-                labels = [labels]
-                labels = np.expand_dims(labels, -1)  
-                    
-                inputData = {}              
-                for name in features:
-                    inputData[name] = np.asarray([dataset[idx][name]])                 
-                                    
-                 
-                yield [labels] + [inputData[name] for name in features] 
-            
-            
-            
-    def getSentenceLengths(self, sentences):
-        sentenceLengths = {}
-        for idx in range(len(sentences)):
-            sentence = sentences[idx]['tokens']
-            if len(sentence) not in sentenceLengths:
-                sentenceLengths[len(sentence)] = []
-            sentenceLengths[len(sentence)].append(idx)
-        
-        return sentenceLengths
-            
-    
-    trainSentenceLengths = None
-    trainSentenceLengthsKeys = None        
-    def batch_iterate_dataset(self, dataset, labelKey):       
-        if self.trainSentenceLengths == None:
-            self.trainSentenceLengths = self.getSentenceLengths(dataset)
-            self.trainSentenceLengthsKeys = list(self.trainSentenceLengths.keys())
-            
-        trainSentenceLengths = self.trainSentenceLengths
-        trainSentenceLengthsKeys = self.trainSentenceLengthsKeys
-        
-        random.shuffle(trainSentenceLengthsKeys)
-        for senLength in trainSentenceLengthsKeys:
-            if self.skipOneTokenSentences and senLength == 1: #Skip 1 token sentences
+    def buildModel(self):
+        self.models = {}
+
+        tokens_input = Input(shape=(None,), dtype='int32', name='words_input')
+        tokens = Embedding(input_dim=self.embeddings.shape[0], output_dim=self.embeddings.shape[1], weights=[self.embeddings], trainable=False, name='word_embeddings')(tokens_input)
+
+        inputNodes = [tokens_input]
+        mergeInputLayers = [tokens]
+
+        for featureName in self.params['featureNames']:
+            if featureName == 'tokens' or featureName == 'characters':
                 continue
-            sentenceIndices = trainSentenceLengths[senLength]
-            random.shuffle(sentenceIndices)
-            sentenceCount = len(sentenceIndices)
-            
-            
-            bins = int(math.ceil(sentenceCount/float(self.params['miniBatchSize'])))
-            binSize = int(math.ceil(sentenceCount / float(bins)))
-           
-            numTrainExamples = 0
-            for binNr in range(bins):
-                tmpIndices = sentenceIndices[binNr*binSize:(binNr+1)*binSize]
-                numTrainExamples += len(tmpIndices)
-                
-                
-                labels = []                
-                features = ['tokens', 'casing']+self.additionalFeatures                
-                inputData = {name: [] for name in features}              
-                
-                for idx in tmpIndices:
-                    labels.append(dataset[idx][labelKey])
-                    
-                    for name in features:
-                        inputData[name].append(dataset[idx][name])                 
-                                    
-                labels = np.asarray(labels)
-                labels = np.expand_dims(labels, -1)
-                
-                for name in features:
-                    inputData[name] = np.asarray(inputData[name])
-                 
-                yield [labels] + [inputData[name] for name in features]   
-                
-            assert(numTrainExamples == sentenceCount) #Check that no sentence was missed 
-            
-          
+
+            feature_input = Input(shape=(None,), dtype='int32', name=featureName+'_input')
+            feature_embedding = Embedding(input_dim=len(self.mappings[featureName]), output_dim=self.params['addFeatureDimensions'], name=featureName+'_emebddings')(feature_input)
+
+            inputNodes.append(feature_input)
+            mergeInputLayers.append(feature_embedding)
         
-    
-    def buildModel(self):        
-        params = self.params  
-        
-        if self.params['charEmbeddings'] not in [None, "None", "none", False, "False", "false"]:
-            self.padCharacters()      
-        
-        embeddings = self.embeddings
-        casing2Idx = self.dataset['mappings']['casing']
-        
-        caseMatrix = np.identity(len(casing2Idx), dtype='float32')
-        
-        tokens = Sequential()
-        tokens.add(Embedding(input_dim=embeddings.shape[0], output_dim=embeddings.shape[1],  weights=[embeddings], trainable=False, name='token_emd'))
-        
-        casing = Sequential()
-        #casing.add(Embedding(input_dim=len(casing2Idx), output_dim=self.addFeatureDimensions, trainable=True)) 
-        casing.add(Embedding(input_dim=caseMatrix.shape[0], output_dim=caseMatrix.shape[1], weights=[caseMatrix], trainable=False, name='casing_emd')) 
-    
-        
-        mergeLayers = [tokens, casing]
-        
-        if self.additionalFeatures != None:
-            for addFeature in self.additionalFeatures:
-                maxAddFeatureValue = max([max(sentence[addFeature]) for sentence in self.dataset['trainMatrix']+self.dataset['devMatrix']+self.dataset['testMatrix']])
-                addFeatureEmd = Sequential()
-                addFeatureEmd.add(Embedding(input_dim=maxAddFeatureValue+1, output_dim=self.params['addFeatureDimensions'], trainable=True, name=addFeature+'_emd'))  
-                mergeLayers.append(addFeatureEmd)
-                
-                
+
         # :: Character Embeddings ::
-        if params['charEmbeddings'] not in [None, "None", "none", False, "False", "false"]:
-            charset = self.dataset['mappings']['characters']
-            charEmbeddingsSize = params['charEmbeddingsSize']
+        if self.params['charEmbeddings'] not in [None, "None", "none", False, "False", "false"]:
+            logging.info("Pad words to uniform length for characters embeddings")
+            all_sentences = []
+            for dataset in self.data.values():
+                for data in [dataset['trainMatrix'], dataset['devMatrix'], dataset['testMatrix']]:
+                    for sentence in data:
+                        all_sentences.append(sentence)
+
+            self.padCharacters(all_sentences)
+            logging.info("Words padded to %d characters" % (self.maxCharLen))
+            
+            charset = self.mappings['characters']
+            charEmbeddingsSize = self.params['charEmbeddingsSize']
             maxCharLen = self.maxCharLen
             charEmbeddings= []
             for _ in charset:
@@ -274,118 +131,256 @@ class BiLSTM:
             charEmbeddings[0] = np.zeros(charEmbeddingsSize) #Zero padding
             charEmbeddings = np.asarray(charEmbeddings)
             
-            chars = Sequential()
-            chars.add(TimeDistributed(Embedding(input_dim=charEmbeddings.shape[0], output_dim=charEmbeddings.shape[1],  weights=[charEmbeddings], trainable=True, mask_zero=True), input_shape=(None,maxCharLen), name='char_emd'))
+            chars_input = Input(shape=(None,maxCharLen), dtype='int32', name='char_input')
+            chars = TimeDistributed(Embedding(input_dim=charEmbeddings.shape[0], output_dim=charEmbeddings.shape[1],  weights=[charEmbeddings], trainable=True, mask_zero=True), name='char_emd')(chars_input)
             
-            if params['charEmbeddings'].lower() == 'lstm': #Use LSTM for char embeddings from Lample et al., 2016
-                charLSTMSize = params['charLSTMSize']
-                chars.add(TimeDistributed(Bidirectional(LSTM(charLSTMSize, return_sequences=False)), name="char_lstm"))
+            if self.params['charEmbeddings'].lower() == 'lstm': #Use LSTM for char embeddings from Lample et al., 2016
+                charLSTMSize = self.params['charLSTMSize']
+                chars = TimeDistributed(Bidirectional(LSTM(charLSTMSize, return_sequences=False)), name="char_lstm")(chars)
             else: #Use CNNs for character embeddings from Ma and Hovy, 2016
-                charFilterSize = params['charFilterSize']
-                charFilterLength = params['charFilterLength']
-                chars.add(TimeDistributed(Convolution1D(charFilterSize, charFilterLength, border_mode='same'), name="char_cnn"))
-                chars.add(TimeDistributed(GlobalMaxPooling1D(), name="char_pooling"))
+                charFilterSize = self.params['charFilterSize']
+                charFilterLength = self.params['charFilterLength']
+                chars = TimeDistributed(Conv1D(charFilterSize, charFilterLength, padding='same'), name="char_cnn")(chars)
+                chars = TimeDistributed(GlobalMaxPooling1D(), name="char_pooling")(chars)
             
-            mergeLayers.append(chars)
-            if self.additionalFeatures == None:
-                self.additionalFeatures = []
-                
-            self.additionalFeatures.append('characters')
+            mergeInputLayers.append(chars)
+            inputNodes.append(chars_input)
+            self.params['featureNames'].append('characters')
+            
+        # :: Task Identifier :: 
+        if self.params['useTaskIdentifier']:
+            self.addTaskIdentifier()
+            
+            taskID_input = Input(shape=(None,), dtype='int32', name='task_id_input')
+            taskIDMatrix = np.identity(len(self.modelNames), dtype='float32')
+            taskID_outputlayer = Embedding(input_dim=taskIDMatrix.shape[0], output_dim=taskIDMatrix.shape[1], weights=[taskIDMatrix], trainable=False, name='task_id_embedding')(taskID_input)
         
-        model = Sequential();
-        model.add(Merge(mergeLayers, mode='concat')) 
+            mergeInputLayers.append(taskID_outputlayer)
+            inputNodes.append(taskID_input)
+            self.params['featureNames'].append('taskID')
+
+        if len(mergeInputLayers) >= 2:
+            merged_input = concatenate(mergeInputLayers)
+        else:
+            merged_input = mergeInputLayers[0]
         
-         
+        
         # Add LSTMs
+        shared_layer = merged_input
+        logging.info("LSTM-Size: %s" % str(self.params['LSTM-Size']))
         cnt = 1
-        for size in params['LSTM-Size']:
-            if isinstance(params['dropout'], (list, tuple)):
-                model.add(Bidirectional(LSTM(size, return_sequences=True, dropout_W=params['dropout'][0], dropout_U=params['dropout'][1]), name="varLSTM_"+str(cnt)))
-            
+        for size in self.params['LSTM-Size']:      
+            if isinstance(self.params['dropout'], (list, tuple)):  
+                shared_layer = Bidirectional(LSTM(size, return_sequences=True, dropout=self.params['dropout'][0], recurrent_dropout=self.params['dropout'][1]), name='shared_varLSTM_'+str(cnt))(shared_layer)
             else:
                 """ Naive dropout """
-                model.add(Bidirectional(LSTM(size, return_sequences=True), name="LSTM_"+str(cnt)))                          
-                
-                if params['dropout'] > 0.0:
-                    model.add(TimeDistributed(Dropout(params['dropout']), name="dropout_"+str(cnt)))
+                shared_layer = Bidirectional(LSTM(size, return_sequences=True), name='shared_LSTM_'+str(cnt))(shared_layer) 
+                if self.params['dropout'] > 0.0:
+                    shared_layer = TimeDistributed(Dropout(self.params['dropout']), name='shared_dropout_'+str(self.params['dropout'])+"_"+str(cnt))(shared_layer)
             
             cnt += 1
+            
+            
+        for modelName in self.modelNames:
+            output = shared_layer
+            
+            modelClassifier = self.params['customClassifier'][modelName] if modelName in self.params['customClassifier'] else self.params['classifier']
+
+            if not isinstance(modelClassifier, (tuple, list)):
+                modelClassifier = [modelClassifier]
+            
+            cnt = 1
+            for classifier in modelClassifier:
+                n_class_labels = len(self.mappings[self.labelKeys[modelName]])
+
+                if classifier == 'Softmax':
+                    output = TimeDistributed(Dense(n_class_labels, activation='softmax'), name=modelName+'_softmax')(output)
+                    lossFct = 'sparse_categorical_crossentropy'
+                elif classifier == 'CRF':
+                    output = TimeDistributed(Dense(n_class_labels, activation=None),
+                                             name=modelName + '_hidden_lin_layer')(output)
+                    crf = ChainCRF(name=modelName+'_crf')
+                    output = crf(output)
+                    lossFct = crf.sparse_loss
+                elif isinstance(classifier, (list, tuple)) and classifier[0] == 'LSTM':
+                            
+                    size = classifier[1]
+                    if isinstance(self.params['dropout'], (list, tuple)): 
+                        output = Bidirectional(LSTM(size, return_sequences=True, dropout=self.params['dropout'][0], recurrent_dropout=self.params['dropout'][1]), name=modelName+'_varLSTM_'+str(cnt))(output)
+                    else:
+                        """ Naive dropout """ 
+                        output = Bidirectional(LSTM(size, return_sequences=True), name=modelName+'_LSTM_'+str(cnt))(output) 
+                        if self.params['dropout'] > 0.0:
+                            output = TimeDistributed(Dropout(self.params['dropout']), name=modelName+'_dropout_'+str(self.params['dropout'])+"_"+str(cnt))(output)                    
+                else:
+                    assert(False) #Wrong classifier
+                    
+                cnt += 1
+                
+            # :: Parameters for the optimizer ::
+            optimizerParams = {}
+            if 'clipnorm' in self.params and self.params['clipnorm'] != None and  self.params['clipnorm'] > 0:
+                optimizerParams['clipnorm'] = self.params['clipnorm']
+            
+            if 'clipvalue' in self.params and self.params['clipvalue'] != None and  self.params['clipvalue'] > 0:
+                optimizerParams['clipvalue'] = self.params['clipvalue']
+            
+            if self.params['optimizer'].lower() == 'adam':
+                opt = Adam(**optimizerParams)
+            elif self.params['optimizer'].lower() == 'nadam':
+                opt = Nadam(**optimizerParams)
+            elif self.params['optimizer'].lower() == 'rmsprop': 
+                opt = RMSprop(**optimizerParams)
+            elif self.params['optimizer'].lower() == 'adadelta':
+                opt = Adadelta(**optimizerParams)
+            elif self.params['optimizer'].lower() == 'adagrad':
+                opt = Adagrad(**optimizerParams)
+            elif self.params['optimizer'].lower() == 'sgd':
+                opt = SGD(lr=0.1, **optimizerParams)
+            
+            
+            model = Model(inputs=inputNodes, outputs=[output])
+            model.compile(loss=lossFct, optimizer=opt)
+            
+            model.summary(line_length=200)
+            #logging.info(model.get_config())
+            #logging.info("Optimizer: %s - %s" % (str(type(model.optimizer)), str(model.optimizer.get_config())))
+            
+            self.models[modelName] = model
         
 
-        # Softmax Decoder
-        if params['classifier'].lower() == 'softmax':    
-            model.add(TimeDistributed(Dense(len(self.dataset['mappings'][self.labelKey]), activation='softmax'), name='softmax_output'))
-            lossFct = 'sparse_categorical_crossentropy'
-        elif params['classifier'].lower() == 'crf':
-            model.add(TimeDistributed(Dense(len(self.dataset['mappings'][self.labelKey]), activation=None), name='hidden_layer'))
-            crf = ChainCRF()
-            model.add(crf)            
-            lossFct = crf.sparse_loss 
-        elif params['classifier'].lower() == 'tanh-crf':
-            model.add(TimeDistributed(Dense(len(self.dataset['mappings'][self.labelKey]), activation='tanh'), name='hidden_layer'))
-            crf = ChainCRF()
-            model.add(crf)            
-            lossFct = crf.sparse_loss 
-        else:
-            print("Please specify a valid classifier")
-            assert(False) #Wrong classifier
-       
-        optimizerParams = {}
-        if 'clipnorm' in self.params and self.params['clipnorm'] != None and  self.params['clipnorm'] > 0:
-            optimizerParams['clipnorm'] = self.params['clipnorm']
+
+    def trainModel(self):
+        self.epoch += 1
         
-        if 'clipvalue' in self.params and self.params['clipvalue'] != None and  self.params['clipvalue'] > 0:
-            optimizerParams['clipvalue'] = self.params['clipvalue']
-        
-        if params['optimizer'].lower() == 'adam':
-            opt = Adam(**optimizerParams)
-        elif params['optimizer'].lower() == 'nadam':
-            opt = Nadam(**optimizerParams)
-        elif params['optimizer'].lower() == 'rmsprop': 
-            opt = RMSprop(**optimizerParams)
-        elif params['optimizer'].lower() == 'adadelta':
-            opt = Adadelta(**optimizerParams)
-        elif params['optimizer'].lower() == 'adagrad':
-            opt = Adagrad(**optimizerParams)
-        elif params['optimizer'].lower() == 'sgd':
-            opt = SGD(lr=0.1, **optimizerParams)
-        
-        
-        model.compile(loss=lossFct, optimizer=opt)
-        
-        self.model = model
-        if self.verboseBuild:            
-            model.summary()
-            logging.debug(model.get_config())            
-            logging.debug("Optimizer: %s, %s" % (str(type(opt)), str(opt.get_config())))
+        if self.params['optimizer'] in self.learning_rate_updates and self.epoch in self.learning_rate_updates[self.params['optimizer']]:       
+            logging.info("Update Learning Rate to %f" % (self.learning_rate_updates[self.params['optimizer']][self.epoch]))
+            for modelName in self.modelNames:            
+                K.set_value(self.models[modelName].optimizer.lr, self.learning_rate_updates[self.params['optimizer']][self.epoch]) 
+                
             
+        for batch in self.minibatch_iterate_dataset():
+            for modelName in self.modelNames:         
+                nnLabels = batch[modelName][0]
+                nnInput = batch[modelName][1:]
+                self.models[modelName].train_on_batch(nnInput, nnLabels)  
+                
+                               
+            
+          
+
+    def minibatch_iterate_dataset(self, modelNames = None):
+        """ Create based on sentence length mini-batches with approx. the same size. Sentences and 
+        mini-batch chunks are shuffled and used to the train the model """
+        
+        if self.trainSentenceLengthRanges == None:
+            """ Create mini batch ranges """
+            self.trainSentenceLengthRanges = {}
+            self.trainMiniBatchRanges = {}            
+            for modelName in self.modelNames:
+                trainData = self.data[modelName]['trainMatrix']
+                trainData.sort(key=lambda x:len(x['tokens'])) #Sort train matrix by sentence length
+                trainRanges = []
+                oldSentLength = len(trainData[0]['tokens'])            
+                idxStart = 0
+                
+                #Find start and end of ranges with sentences with same length
+                for idx in range(len(trainData)):
+                    sentLength = len(trainData[idx]['tokens'])
+                    
+                    if sentLength != oldSentLength:
+                        trainRanges.append((idxStart, idx))
+                        idxStart = idx
+                    
+                    oldSentLength = sentLength
+                
+                #Add last sentence
+                trainRanges.append((idxStart, len(trainData)))
+                
+                
+                #Break up ranges into smaller mini batch sizes
+                miniBatchRanges = []
+                for batchRange in trainRanges:
+                    rangeLen = batchRange[1]-batchRange[0]
+
+                    bins = int(math.ceil(rangeLen/float(self.params['miniBatchSize'])))
+                    binSize = int(math.ceil(rangeLen / float(bins)))
+                    
+                    for binNr in range(bins):
+                        startIdx = binNr*binSize+batchRange[0]
+                        endIdx = min(batchRange[1],(binNr+1)*binSize+batchRange[0])
+                        miniBatchRanges.append((startIdx, endIdx))
+                      
+                self.trainSentenceLengthRanges[modelName] = trainRanges
+                self.trainMiniBatchRanges[modelName] = miniBatchRanges
+                
+        if modelNames == None:
+            modelNames = self.modelNames
+            
+        #Shuffle training data
+        for modelName in modelNames:      
+            #1. Shuffle sentences that have the same length
+            x = self.data[modelName]['trainMatrix']
+            for dataRange in self.trainSentenceLengthRanges[modelName]:
+                for i in reversed(range(dataRange[0]+1, dataRange[1])):
+                    # pick an element in x[:i+1] with which to exchange x[i]
+                    j = random.randint(dataRange[0], i)
+                    x[i], x[j] = x[j], x[i]
+               
+            #2. Shuffle the order of the mini batch ranges       
+            random.shuffle(self.trainMiniBatchRanges[modelName])
+     
+        
+        #Iterate over the mini batch ranges
+        if self.mainModelName != None:
+            rangeLength = len(self.trainMiniBatchRanges[self.mainModelName])
+        else:
+            rangeLength = min([len(self.trainMiniBatchRanges[modelName]) for modelName in modelNames])
+
+        
+        batches = {}
+        for idx in range(rangeLength):
+            batches.clear()
+            
+            for modelName in modelNames:   
+                trainMatrix = self.data[modelName]['trainMatrix']
+                dataRange = self.trainMiniBatchRanges[modelName][idx % len(self.trainMiniBatchRanges[modelName])] 
+                labels = np.asarray([trainMatrix[idx][self.labelKeys[modelName]] for idx in range(dataRange[0], dataRange[1])])
+                labels = np.expand_dims(labels, -1)
+                
+                
+                batches[modelName] = [labels]
+                
+                for featureName in self.params['featureNames']:
+                    inputData = np.asarray([trainMatrix[idx][featureName] for idx in range(dataRange[0], dataRange[1])])
+                    batches[modelName].append(inputData)
+            
+            yield batches   
+            
+
+        
     def storeResults(self, resultsFilepath):
         if resultsFilepath != None:
             directory = os.path.dirname(resultsFilepath)
             if not os.path.exists(directory):
                 os.makedirs(directory)
                 
-            self.resultsOut = open(resultsFilepath, 'w')
+            self.resultsSavePath = open(resultsFilepath, 'w')
         else:
-            self.resultsOut = None 
-
-    
-    def evaluate(self, epochs):  
-        logging.info("%d train sentences" % len(self.dataset['trainMatrix']))     
-        logging.info("%d dev sentences" % len(self.dataset['devMatrix']))   
-        logging.info("%d test sentences" % len(self.dataset['testMatrix']))   
+            self.resultsSavePath = None
         
-        devMatrix = self.dataset['devMatrix']
-        testMatrix = self.dataset['testMatrix']
-   
+    def fit(self, epochs):
+        if self.models is None:
+            self.buildModel()
+
         total_train_time = 0
-        max_dev_score = 0
-        max_test_score = 0
+        max_dev_score = {modelName:0 for modelName in self.models.keys()}
+        max_test_score = {modelName:0 for modelName in self.models.keys()}
         no_improvement_since = 0
         
         for epoch in range(epochs):      
             sys.stdout.flush()           
-            logging.info("--------- Epoch %d -----------" % (epoch+1))
+            logging.info("\n--------- Epoch %d -----------" % (epoch+1))
             
             start_time = time.time() 
             self.trainModel()
@@ -394,166 +389,145 @@ class BiLSTM:
             logging.info("%.2f sec for training (%.2f total)" % (time_diff, total_train_time))
             
             
-            start_time = time.time()
-            dev_score, test_score = self.computeScores(devMatrix, testMatrix)
-            
-            if dev_score > max_dev_score:
-                no_improvement_since = 0
-                max_dev_score = dev_score 
-                max_test_score = test_score
+            start_time = time.time() 
+            for modelName in self.evaluateModelNames:
+                logging.info("-- %s --" % (modelName))
+                dev_score, test_score = self.computeScore(modelName, self.data[modelName]['devMatrix'], self.data[modelName]['testMatrix'])
+         
                 
-                if self.modelSavePath != None:                    
-                    savePath = self.modelSavePath.replace("[DevScore]", "%.4f" % dev_score).replace("[TestScore]", "%.4f" % test_score).replace("[Epoch]", str(epoch))
+                if dev_score > max_dev_score[modelName]:
+                    max_dev_score[modelName] = dev_score
+                    max_test_score[modelName] = test_score
+                    no_improvement_since = 0
+
+                    #Save the model
+                    if self.modelSavePath != None:
+                        self.saveModel(modelName, epoch, dev_score, test_score)
+                else:
+                    no_improvement_since += 1
                     
-                    directory = os.path.dirname(savePath)
-                    if not os.path.exists(directory):
-                        os.makedirs(directory)
-                        
-                    if not os.path.isfile(savePath):
-                        self.model.save(savePath, False)
-                        
-                        
-                        #self.save_dict_to_hdf5(self.mappings, savePath, 'mappings')
-                        
-                        import json
-                        import h5py
-                        mappingsJson = json.dumps(self.mappings)
-                        with h5py.File(savePath, 'a') as h5file:
-                            h5file.attrs['mappings'] = mappingsJson
-                            h5file.attrs['additionalFeatures'] = json.dumps(self.additionalFeatures)
-                            h5file.attrs['maxCharLen'] = str(self.maxCharLen)
-                            
-                        #mappingsOut = open(savePath+'.mappings', 'wb')                        
-                        #pkl.dump(self.dataset['mappings'], mappingsOut)
-                        #mappingsOut.close()
-                    else:
-                        logging.info("Model", savePath, "already exists")
-            else:
-                no_improvement_since += 1
+                    
+                if self.resultsSavePath != None:
+                    self.resultsSavePath.write("\t".join(map(str, [epoch + 1, modelName, dev_score, test_score, max_dev_score[modelName], max_test_score[modelName]])))
+                    self.resultsSavePath.write("\n")
+                    self.resultsSavePath.flush()
                 
+                logging.info("Max: %.4f dev; %.4f test" % (max_dev_score[modelName], max_test_score[modelName]))
+                logging.info("")
                 
-            if self.resultsOut != None:
-                self.resultsOut.write("\t".join(map(str, [epoch+1, dev_score, test_score, max_dev_score, max_test_score])))
-                self.resultsOut.write("\n")
-                self.resultsOut.flush()
-                
-            logging.info("Max: %.4f on dev; %.4f on test" % (max_dev_score, max_test_score))
             logging.info("%.2f sec for evaluation" % (time.time() - start_time))
             
-            if self.params['earlyStopping'] > 0 and no_improvement_since >= self.params['earlyStopping']:
+            if self.params['earlyStopping']  > 0 and no_improvement_since >= self.params['earlyStopping']:
                 logging.info("!!! Early stopping, no improvement after "+str(no_improvement_since)+" epochs !!!")
                 break
             
             
-    def computeScores(self, devMatrix, testMatrix):
-        if self.labelKey.endswith('_BIO') or self.labelKey.endswith('_IOB') or self.labelKey.endswith('_IOBES'):
-            return self.computeF1Scores(devMatrix, testMatrix)
-        else:
-            return self.computeAccScores(devMatrix, testMatrix)
+    def tagSentences(self, sentences):
+        # Pad characters
+        if 'characters' in self.params['featureNames']:
+            self.padCharacters(sentences)
+
+        labels = {}
+        for modelName, model in self.models.items():
+            paddedPredLabels = self.predictLabels(model, sentences)
+            predLabels = []
+            for idx in range(len(sentences)):
+                unpaddedPredLabels = []
+                for tokenIdx in range(len(sentences[idx]['tokens'])):
+                    if sentences[idx]['tokens'][tokenIdx] != 0:  # Skip padding tokens
+                        unpaddedPredLabels.append(paddedPredLabels[idx][tokenIdx])
+
+                predLabels.append(unpaddedPredLabels)
+
+            idx2Label = self.idx2Labels[modelName]
+            labels[modelName] = [[idx2Label[tag] for tag in tagSentence] for tagSentence in predLabels]
+
+        return labels
             
-    def computeF1Scores(self, devMatrix, testMatrix):       
-        dev_pre, dev_rec, dev_f1 = self.computeF1(devMatrix, 'dev')
+    
+    def getSentenceLengths(self, sentences):
+        sentenceLengths = {}
+        for idx in range(len(sentences)):
+            sentence = sentences[idx]['tokens']
+            if len(sentence) not in sentenceLengths:
+                sentenceLengths[len(sentence)] = []
+            sentenceLengths[len(sentence)].append(idx)
+        
+        return sentenceLengths
+
+    def predictLabels(self, model, sentences):
+        predLabels = [None]*len(sentences)
+        sentenceLengths = self.getSentenceLengths(sentences)
+        
+        for indices in sentenceLengths.values():   
+            nnInput = []                  
+            for featureName in self.params['featureNames']:
+                inputData = np.asarray([sentences[idx][featureName] for idx in indices])
+                nnInput.append(inputData)
+            
+            predictions = model.predict(nnInput, verbose=False)
+            predictions = predictions.argmax(axis=-1) #Predict classes            
+           
+            
+            predIdx = 0
+            for idx in indices:
+                predLabels[idx] = predictions[predIdx]    
+                predIdx += 1   
+        
+        return predLabels
+    
+   
+    def computeScore(self, modelName, devMatrix, testMatrix):
+        if self.labelKeys[modelName].endswith('_BIO') or self.labelKeys[modelName].endswith('_IOBES') or self.labelKeys[modelName].endswith('_IOB'):
+            return self.computeF1Scores(modelName, devMatrix, testMatrix)
+        else:
+            return self.computeAccScores(modelName, devMatrix, testMatrix)   
+
+    def computeF1Scores(self, modelName, devMatrix, testMatrix):
+        #train_pre, train_rec, train_f1 = self.computeF1(modelName, self.datasets[modelName]['trainMatrix'])
+        #print "Train-Data: Prec: %.3f, Rec: %.3f, F1: %.4f" % (train_pre, train_rec, train_f1)
+        
+        dev_pre, dev_rec, dev_f1 = self.computeF1(modelName, devMatrix)
         logging.info("Dev-Data: Prec: %.3f, Rec: %.3f, F1: %.4f" % (dev_pre, dev_rec, dev_f1))
         
-        if self.devAndTestEqual:
-            test_pre, test_rec, test_f1 = dev_pre, dev_rec, dev_f1 
-        else:        
-            test_pre, test_rec, test_f1 = self.computeF1(testMatrix, 'test')
+        test_pre, test_rec, test_f1 = self.computeF1(modelName, testMatrix)
         logging.info("Test-Data: Prec: %.3f, Rec: %.3f, F1: %.4f" % (test_pre, test_rec, test_f1))
         
         return dev_f1, test_f1
-        
-    def computeAccScores(self, devMatrix, testMatrix):
-        dev_acc = self.computeAcc(devMatrix)
-        test_acc = self.computeAcc(testMatrix)
+    
+    def computeAccScores(self, modelName, devMatrix, testMatrix):
+        dev_acc = self.computeAcc(modelName, devMatrix)
+        test_acc = self.computeAcc(modelName, testMatrix)
         
         logging.info("Dev-Data: Accuracy: %.4f" % (dev_acc))
         logging.info("Test-Data: Accuracy: %.4f" % (test_acc))
         
-        return dev_acc, test_acc
-          
+        return dev_acc, test_acc   
+        
+        
+    def computeF1(self, modelName, sentences):
+        labelKey = self.labelKeys[modelName]
+        model = self.models[modelName]
+        idx2Label = self.idx2Labels[modelName]
+        
+        correctLabels = [sentences[idx][labelKey] for idx in range(len(sentences))]
+        predLabels = self.predictLabels(model, sentences) 
 
-    def tagSentences(self, sentences):
+        labelKey = self.labelKeys[modelName]
+        encodingScheme = labelKey[labelKey.index('_')+1:]
         
-        #Pad characters
-        if 'characters' in self.additionalFeatures:       
-            maxCharLen = self.maxCharLen
-            for sentenceIdx in range(len(sentences)):
-                for tokenIdx in range(len(sentences[sentenceIdx]['characters'])):
-                    token = sentences[sentenceIdx]['characters'][tokenIdx]
-                    sentences[sentenceIdx]['characters'][tokenIdx] = np.pad(token, (0, maxCharLen-len(token)), 'constant')
-        
-    
-        paddedPredLabels = self.predictLabels(sentences)        
-        predLabels = []
-        for idx in range(len(sentences)):           
-            unpaddedPredLabels = []
-            for tokenIdx in range(len(sentences[idx]['tokens'])):
-                if sentences[idx]['tokens'][tokenIdx] != 0: #Skip padding tokens                     
-                    unpaddedPredLabels.append(paddedPredLabels[idx][tokenIdx])
-            
-            predLabels.append(unpaddedPredLabels)
-            
-            
-        idx2Label = {v: k for k, v in self.mappings['label'].items()}
-        labels = [[idx2Label[tag] for tag in tagSentence] for tagSentence in predLabels]
-        
-        return labels
-    
-    def computeF1(self, sentences, name=''):
-        correctLabels = []
-        predLabels = []
-        paddedPredLabels = self.predictLabels(sentences)        
-        
-        for idx in range(len(sentences)):
-            unpaddedCorrectLabels = []
-            unpaddedPredLabels = []
-            for tokenIdx in range(len(sentences[idx]['tokens'])):
-                if sentences[idx]['tokens'][tokenIdx] != 0: #Skip padding tokens 
-                    unpaddedCorrectLabels.append(sentences[idx][self.labelKey][tokenIdx])
-                    unpaddedPredLabels.append(paddedPredLabels[idx][tokenIdx])
-                    
-            correctLabels.append(unpaddedCorrectLabels)
-            predLabels.append(unpaddedPredLabels)
-            
-        
-        encodingScheme = self.labelKey[self.labelKey.index('_')+1:]
-               
-        pre, rec, f1 = BIOF1Validation.compute_f1(predLabels, correctLabels, self.idx2Label, 'O', encodingScheme)  
-        pre_b, rec_b, f1_b = BIOF1Validation.compute_f1(predLabels, correctLabels, self.idx2Label, 'B', encodingScheme)
-        
+        pre, rec, f1 = BIOF1Validation.compute_f1(predLabels, correctLabels, idx2Label, 'O', encodingScheme)
+        pre_b, rec_b, f1_b = BIOF1Validation.compute_f1(predLabels, correctLabels, idx2Label, 'B', encodingScheme)
         
         if f1_b > f1:
-            logging.debug("Setting incorrect tags to B yields improvement from %.4f to %.4f" % (f1, f1_b))
-            pre, rec, f1 = pre_b, rec_b, f1_b 
+            logging.debug("Setting wrong tags to B- improves from %.4f to %.4f" % (f1, f1_b))
+            pre, rec, f1 = pre_b, rec_b, f1_b
         
-    
-        if self.writeOutput:
-            self.writeOutputToFile(sentences, predLabels, '%.4f_%s' % (f1, name))
         return pre, rec, f1
     
-    def writeOutputToFile(self, sentences, predLabels, name):
-            outputName = 'tmp/'+name
-            fOut = open(outputName, 'w')
-            
-            for sentenceIdx in range(len(sentences)):
-                for tokenIdx in range(len(sentences[sentenceIdx]['tokens'])):
-                    token = self.idx2Word[sentences[sentenceIdx]['tokens'][tokenIdx]]
-                    label = self.idx2Label[sentences[sentenceIdx][self.labelKey][tokenIdx]]
-                    predLabel = self.idx2Label[predLabels[sentenceIdx][tokenIdx]]
-                    
-                    fOut.write("\t".join([token, label, predLabel]))
-                    fOut.write("\n")
-                
-                fOut.write("\n")
-            
-            fOut.close()
-            
-        
-    
-    def computeAcc(self, sentences):
-        correctLabels = [sentences[idx][self.labelKey] for idx in range(len(sentences))]
-        predLabels = self.predictLabels(sentences) 
+    def computeAcc(self, modelName, sentences):
+        correctLabels = [sentences[idx][self.labelKeys[modelName]] for idx in range(len(sentences))]
+        predLabels = self.predictLabels(self.models[modelName], sentences) 
         
         numLabels = 0
         numCorrLabels = 0
@@ -566,21 +540,84 @@ class BiLSTM:
   
         return numCorrLabels/float(numLabels)
     
-    def loadModel(self, modelPath):
+    def padCharacters(self, sentences):
+        """ Pads the character representations of the words to the longest word in the dataset """
+        #Find the longest word in the dataset
+        maxCharLen = self.params['maxCharLength']
+        if maxCharLen <= 0:
+            for sentence in sentences:
+                for token in sentence['characters']:
+                    maxCharLen = max(maxCharLen, len(token))
+          
+
+        for sentenceIdx in range(len(sentences)):
+            for tokenIdx in range(len(sentences[sentenceIdx]['characters'])):
+                token = sentences[sentenceIdx]['characters'][tokenIdx]
+
+                if len(token) < maxCharLen: #Token shorter than maxCharLen -> pad token
+                    sentences[sentenceIdx]['characters'][tokenIdx] = np.pad(token, (0,maxCharLen-len(token)), 'constant')
+                else: #Token longer than maxCharLen -> truncate token
+                    sentences[sentenceIdx]['characters'][tokenIdx] = token[0:maxCharLen]
+    
+        self.maxCharLen = maxCharLen
+        
+    def addTaskIdentifier(self):
+        """ Adds an identifier to every token, which identifies the task the token stems from """
+        taskID = 0
+        for modelName in self.modelNames:
+            dataset = self.data[modelName]
+            for dataName in ['trainMatrix', 'devMatrix', 'testMatrix']:            
+                for sentenceIdx in range(len(dataset[dataName])):
+                    dataset[dataName][sentenceIdx]['taskID'] = [taskID] * len(dataset[dataName][sentenceIdx]['tokens'])
+            
+            taskID += 1
+
+
+    def saveModel(self, modelName, epoch, dev_score, test_score):
+        import json
+        import h5py
+
+        if self.modelSavePath == None:
+            raise ValueError('modelSavePath not specified.')
+
+        savePath = self.modelSavePath.replace("[DevScore]", "%.4f" % dev_score).replace("[TestScore]", "%.4f" % test_score).replace("[Epoch]", str(epoch+1)).replace("[ModelName]", modelName)
+
+        directory = os.path.dirname(savePath)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
+        if os.path.isfile(savePath):
+            logging.info("Model "+savePath+" already exists. Model will be overwritten")
+
+        self.models[modelName].save(savePath, True)
+
+        with h5py.File(savePath, 'a') as h5file:
+            h5file.attrs['mappings'] = json.dumps(self.mappings)
+            h5file.attrs['params'] = json.dumps(self.params)
+            h5file.attrs['modelName'] = modelName
+            h5file.attrs['labelKey'] = self.datasets[modelName]['label']
+
+
+
+
+    @staticmethod
+    def loadModel(modelPath):
         import h5py
         import json
-        from neuralnets.keraslayers.ChainCRF import create_custom_objects
-        
+        from .keraslayers.ChainCRF import create_custom_objects
+
         model = keras.models.load_model(modelPath, custom_objects=create_custom_objects())
 
         with h5py.File(modelPath, 'r') as f:
             mappings = json.loads(f.attrs['mappings'])
-            if 'additionalFeatures' in f.attrs:
-                self.additionalFeatures = json.loads(f.attrs['additionalFeatures'])
-                
-            if 'maxCharLen' in f.attrs:
-                self.maxCharLen = int(f.attrs['maxCharLen'])
-            
-        self.model = model        
-        self.setMappings(None, mappings)
-        
+            params = json.loads(f.attrs['params'])
+            modelName = f.attrs['modelName']
+            labelKey = f.attrs['labelKey']
+
+        bilstm = BiLSTM(params)
+        bilstm.setMappings(mappings, None)
+        bilstm.models = {modelName: model}
+        bilstm.labelKeys = {modelName: labelKey}
+        bilstm.idx2Labels = {}
+        bilstm.idx2Labels[modelName] = {v: k for k, v in bilstm.mappings[labelKey].items()}
+        return bilstm

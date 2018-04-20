@@ -1,8 +1,8 @@
-# This file contain an example how to perform multi-task learning using the
-# BiLSTM-CNN-CRF implementation.
+# This file contain an example how to perform multi-task learning on different levels.
 # In the datasets variable, we specify two datasets: POS-tagging (unidep_pos) and conll2000_chunking.
-# The network will then train jointly on both datasets.
-# The network can on more datasets by adding more entries to the datasets dictionary.
+# We pass a special parameter to the network (customClassifier), that allows that task are supervised at different levels.
+# For the POS task, we use one shared LSTM layer followed by a softmax classifier. However, the chunking
+# task uses the shared LSTM layer, then a task specific LSTM layer with 50 recurrent units, and then a CRF classifier.
 
 from __future__ import print_function
 import os
@@ -12,7 +12,6 @@ from neuralnets.BiLSTM import BiLSTM
 from util.preprocessing import perpareDataset, loadDatasetPickle
 
 from keras import backend as K
-
 
 # :: Change into the working dir of the script ::
 abspath = os.path.abspath(__file__)
@@ -66,7 +65,8 @@ pickleFile = perpareDataset(embeddingsPath, datasets)
 embeddings, mappings, data = loadDatasetPickle(pickleFile)
 
 # Some network hyperparameters
-params = {'classifier': ['CRF'], 'LSTM-Size': [100], 'dropout': (0.25, 0.25)}
+params = {'classifier': ['CRF'], 'LSTM-Size': [100], 'dropout': (0.25, 0.25),
+          'customClassifier': {'unidep_pos': ['Softmax'], 'conll2000_chunking': [('LSTM', 50), 'CRF']}}
 
 
 model = BiLSTM(params)

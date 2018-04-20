@@ -1,9 +1,14 @@
+# This script trains the BiLSTM-CNN-CRF architecture for NER in German using
+# the GermEval 2014 dataset (https://sites.google.com/site/germeval2014ner/).
+# The code use the embeddings by Reimers et al. (https://www.ukp.tu-darmstadt.de/research/ukp-in-challenges/germeval-2014/)
 from __future__ import print_function
 import os
 import logging
 import sys
 from neuralnets.BiLSTM import BiLSTM
 from util.preprocessing import perpareDataset, loadDatasetPickle
+
+from keras import backend as K
 
 # :: Change into the working dir of the script ::
 abspath = os.path.abspath(__file__)
@@ -22,40 +27,23 @@ ch.setFormatter(formatter)
 logger.addHandler(ch)
 
 
-
-
 ######################################################
 #
 # Data preprocessing
 #
 ######################################################
-
-
-# :: Train / Dev / Test-Files ::
-datasetName = 'GermEval'
-dataColumns = {1:'tokens', 2:'NER_BIO'} #Tab separated columns, column 1 contains the token, 2 the NER using BIO-encoding
-labelKey = 'NER_BIO'
-
-embeddingsPath = '2014_tudarmstadt_german_50mincount.vocab.gz' #Word embeddings by Reimers et al: https://www.ukp.tu-darmstadt.de/research/ukp-in-challenges/germeval-2014/
-
-#Parameters of the network
-params = {'dropout': [0.25, 0.25], 'classifier': 'CRF', 'LSTM-Size': [100,75], 'optimizer': 'nadam', 'charEmbeddings': 'CNN', 'miniBatchSize': 32}
-
-
-
-frequencyThresholdUnknownTokens = 50 #If a token that is not in the pre-trained embeddings file appears at least 50 times in the train.txt, then a new embedding is generated for this word
-
-
-
-datasetFiles = [
-        (datasetName, dataColumns),
-    ]
-
+datasets = {
+    'GermEval':                                   #Name of the dataset
+        {'columns': {1:'tokens', 2:'NER_BIO'},    #CoNLL format for the input data. Column 1 contains tokens, column 2 contains NER information using BIO encoding
+         'label': 'NER_BIO',                      #Which column we like to predict
+         'evaluate': True,                        #Should we evaluate on this task? Set true always for single task setups
+         'commentSymbol': None}                   #Lines in the input data starting with this string will be skipped. Can be used to skip comments
+}
+# :: Path on your computer to the word embeddings. Embeddings by Reimers et al. will be downloaded automatically ::
+embeddingsPath = 'reimers_german_embeddings.gz'
 
 # :: Prepares the dataset to be used with the LSTM-network. Creates and stores cPickle files in the pkl/ folder ::
-pickleFile = perpareDataset(embeddingsPath, datasetFiles)
-
-
+pickleFile = perpareDataset(embeddingsPath, datasets)
 
 
 ######################################################
@@ -64,25 +52,19 @@ pickleFile = perpareDataset(embeddingsPath, datasetFiles)
 #
 ######################################################
 
+
 #Load the embeddings and the dataset
-embeddings, word2Idx, datasets = loadDatasetPickle(pickleFile)
-data = datasets[datasetName]
+embeddings, mappings, data = loadDatasetPickle(pickleFile)
 
-
-
-print("Dataset:", datasetName)
-print(data['mappings'].keys())
-print("Label key: ", labelKey)
-print("Train Sentences:", len(data['trainMatrix']))
-print("Dev Sentences:", len(data['devMatrix']))
-print("Test Sentences:", len(data['testMatrix']))
+# Some network hyperparameters
+params = {'classifier': ['CRF'], 'LSTM-Size': [100, 100], 'dropout': (0.25, 0.25), 'charEmbeddings': 'CNN', 'maxCharLength': 50}
 
 
 model = BiLSTM(params)
-model.setMappings(embeddings, data['mappings'])
-model.setTrainDataset(data, labelKey)
-model.verboseBuild = True
-model.modelSavePath = "models/%s/%s/[DevScore]_[TestScore]_[Epoch].h5" % (datasetName, labelKey) #Enable this line to save the model to the disk
-model.evaluate(50)
+model.setMappings(mappings, embeddings)
+model.setDataset(datasets, data)
+model.modelSavePath = "models/[ModelName]_[DevScore]_[TestScore]_[Epoch].h5"
+model.fit(epochs=25)
+
 
 

@@ -1,70 +1,17 @@
 # -*- coding: utf-8 -*-
 
-"""
-Author: Philipp Gross, https://github.com/fchollet/keras/pull/4621/files
-"""
+'''
+Author: Philipp Gross @ https://github.com/phipleg/keras/blob/crf/keras/layers/crf.py
+'''
 
 from __future__ import absolute_import
-from __future__ import print_function
 
+import keras
 from keras import backend as K
-from keras import initializations, regularizers, constraints
+from keras import regularizers
+from keras import constraints
+from keras import initializers
 from keras.engine import Layer, InputSpec
-
-if K._BACKEND == 'tensorflow':
-    import tensorflow as tf
-    
-    def logsumexp(x, axis=None):
-        '''Returns `log(sum(exp(x), axis=axis))` with improved numerical stability.
-        '''
-        return tf.reduce_logsumexp(x, axis=[axis])
-    
-    
-    def batch_gather(reference, indices):
-        '''Batchwise gathering of row indices.
-    
-        The numpy equivalent is reference[np.arange(batch_size), indices].
-    
-        # Arguments
-            reference: tensor with ndim >= 2 of shape
-              (batch_size, dim1, dim2, ..., dimN)
-            indices: 1d integer tensor of shape (batch_size) satisfiying
-              0 <= i < dim2 for each element i.
-    
-        # Returns
-            A tensor with shape (batch_size, dim2, ..., dimN)
-            equal to reference[1:batch_size, indices]
-        '''
-        batch_size = K.shape(reference)[0]
-        indices = tf.pack([tf.range(batch_size), indices], axis=1)
-        return tf.gather_nd(reference, indices)
-else:
-    import theano.tensor as T
-    def logsumexp(x, axis=None):
-        '''Returns `log(sum(exp(x), axis=axis))` with improved numerical stability.
-        '''
-        xmax = K.max(x, axis=axis, keepdims=True)
-        xmax_ = K.max(x, axis=axis)
-        return xmax_ + K.log(K.sum(K.exp(x - xmax), axis=axis))
-    
-    
-    def batch_gather(reference, indices):
-        '''Batchwise gathering of row indices.
-    
-        The numpy equivalent is reference[np.arange(batch_size), indices],
-    
-        # Arguments
-            reference: tensor with ndim >= 2 of shape
-              (batch_size, dim1, dim2, ..., dimN)
-            indices: 1d integer tensor of shape (batch_size) satisfiying
-              0 <= i < dim2 for each element i.
-    
-        # Returns
-            A tensor with shape (batch_size, dim2, ..., dimN)
-            equal to reference[1:batch_size, indices]
-        '''
-        batch_size = K.shape(reference)[0]
-        return reference[T.arange(batch_size), indices]
 
 def path_energy(y, x, U, b_start=None, b_end=None, mask=None):
     '''Calculates the energy of a tag path y for a given input x (with mask),
@@ -105,8 +52,10 @@ def sparse_chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
     '''Given the true sparsely encoded tag sequence y, input x (with mask),
     transition energies U, boundary energies b_start and b_end, it computes
     the loss function of a Linear Chain Conditional Random Field:
+
     loss(y, x) = NNL(P(y|x)), where P(y|x) = exp(E(y, x)) / Z.
     So, loss(y, x) = - E(y, x) + log(Z)
+
     Here, E(y, x) is the tag path energy, and Z is the normalization constant.
     The values log(Z) is also called free energy.
     '''
@@ -175,7 +124,7 @@ def free_energy0(x, U, mask=None):
     '''Free energy without boundary potential handling.'''
     initial_states = [x[:, 0, :]]
     last_alpha, _ = _forward(x,
-                             lambda B: [logsumexp(B, axis=1)],
+                             lambda B: [K.logsumexp(B, axis=1)],
                              initial_states,
                              U,
                              mask)
@@ -202,6 +151,14 @@ def _forward(x, reduce_step, initial_states, U, mask=None):
 
     last, values, _ = K.rnn(_forward_step, inputs, initial_states)
     return last, values
+
+
+def batch_gather(reference, indices):
+    ref_shape = K.shape(reference)
+    batch_size = ref_shape[0]
+    n_classes = ref_shape[1]
+    flat_indices = K.arange(0, batch_size) * n_classes + K.flatten(indices)
+    return K.gather(K.flatten(reference), flat_indices)
 
 
 def _backward(gamma, mask):
@@ -231,15 +188,17 @@ def _backward(gamma, mask):
 
 class ChainCRF(Layer):
     '''A Linear Chain Conditional Random Field output layer.
+
     It carries the loss function and its weights for computing
     the global tag sequence scores. While training it acts as
     the identity function that passes the inputs to the subsequently
     used loss function. While testing it applies Viterbi decoding
     and returns the best scoring tag sequence as one-hot encoded vectors.
+
     # Arguments
         init: weight initialization function for chain energies U.
             Can be the name of an existing function (str),
-            or a Theano function (see: [initializations](../initializations.md)).
+            or a Theano function (see: [initializers](../initializers.md)).
         U_regularizer: instance of [WeightRegularizer](../regularizers.md)
             (eg. L1 or L2 regularization), applied to the transition weight matrix.
         b_start_regularizer: instance of [WeightRegularizer](../regularizers.md),
@@ -248,55 +207,70 @@ class ChainCRF(Layer):
             module, applied to the end bias b.
         b_start_constraint: instance of the [constraints](../constraints.md)
             module, applied to the start bias b.
-        b_end_regularizer: instance of the [constraints](../constraints.md)
+        b_end_constraint: instance of the [constraints](../constraints.md)
             module, applied to the end bias b.
         weights: list of Numpy arrays for initializing [U, b_start, b_end].
             Thus it should be a list of 3 elements of shape
             [(n_classes, n_classes), (n_classes, ), (n_classes, )]
+
     # Input shape
         3D tensor with shape `(nb_samples, timesteps, nb_classes)`, where
         ´timesteps >= 2`and `nb_classes >= 2`.
+
     # Output shape
         Same shape as input.
+
     # Masking
         This layer supports masking for input sequences of variable length.
+
     # Example
+
     ```python
     # As the last layer of sequential layer with
     # model.output_shape == (None, timesteps, nb_classes)
     crf = ChainCRF()
     model.add(crf)
     # now: model.output_shape == (None, timesteps, nb_classes)
+
     # Compile model with chain crf loss (and one-hot encoded labels) and accuracy
     model.compile(loss=crf.loss, optimizer='sgd', metrics=['accuracy'])
+
     # Alternatively, compile model with sparsely encoded labels and sparse accuracy:
     model.compile(loss=crf.sparse_loss, optimizer='sgd', metrics=['sparse_categorical_accuracy'])
     ```
+
     # Gotchas
+
     ## Model loading
+
     When you want to load a saved model that has a crf output, then loading
     the model with 'keras.models.load_model' won't work properly because
     the reference of the loss function to the transition parameters is lost. To
     fix this, you need to use the parameter 'custom_objects' as follows:
+
     ```python
     from keras.layer.crf import create_custom_objects:
     model = keras.models.load_model(filename, custom_objects=create_custom_objects())
     ```
+
     ## Temporal sample weights
+
     Given a ChainCRF instance crf both loss functions, crf.loss and crf.sparse_loss
     return a tensor of shape (batch_size, 1) and not (batch_size, maxlen).
     that sample weighting in temporal mode.
+
     '''
     def __init__(self, init='glorot_uniform',
-                 U_regularizer=None, b_start_regularizer=None, b_end_regularizer=None,
-                 U_constraint=None, b_start_constraint=None, b_end_constraint=None,
+                 U_regularizer=None,
+                 b_start_regularizer=None,
+                 b_end_regularizer=None,
+                 U_constraint=None,
+                 b_start_constraint=None,
+                 b_end_constraint=None,
                  weights=None,
                  **kwargs):
-        self.supports_masking = True
-        self.uses_learning_phase = True
-        self.input_spec = [InputSpec(ndim=3)]
-        self.init = initializations.get(init)
-
+        super(ChainCRF, self).__init__(**kwargs)
+        self.init = initializers.get(init)
         self.U_regularizer = regularizers.get(U_regularizer)
         self.b_start_regularizer = regularizers.get(b_start_regularizer)
         self.b_end_regularizer = regularizers.get(b_end_regularizer)
@@ -306,9 +280,11 @@ class ChainCRF(Layer):
 
         self.initial_weights = weights
 
-        super(ChainCRF, self).__init__(**kwargs)
+        self.supports_masking = True
+        self.uses_learning_phase = True
+        self.input_spec = [InputSpec(ndim=3)]
 
-    def get_output_shape_for(self, input_shape):
+    def compute_output_shape(self, input_shape):
         assert input_shape and len(input_shape) == 3
         return (input_shape[0], input_shape[1], input_shape[2])
 
@@ -319,34 +295,36 @@ class ChainCRF(Layer):
 
     def _fetch_mask(self):
         mask = None
-        if self.inbound_nodes:
-            mask = self.inbound_nodes[0].input_masks[0]
+        
+        
+        if self._inbound_nodes:
+            mask = self._inbound_nodes[0].input_masks[0]
+
         return mask
 
     def build(self, input_shape):
         assert len(input_shape) == 3
         n_classes = input_shape[2]
         n_steps = input_shape[1]
-        assert n_classes >= 2
         assert n_steps is None or n_steps >= 2
         self.input_spec = [InputSpec(dtype=K.floatx(),
                                      shape=(None, n_steps, n_classes))]
 
         self.U = self.add_weight((n_classes, n_classes),
                                  initializer=self.init,
-                                 name='{}_U'.format(self.name),
+                                 name='U',
                                  regularizer=self.U_regularizer,
                                  constraint=self.U_constraint)
 
         self.b_start = self.add_weight((n_classes, ),
                                        initializer='zero',
-                                       name='{}_b_start'.format(self.name),
+                                       name='b_start',
                                        regularizer=self.b_start_regularizer,
                                        constraint=self.b_start_constraint)
 
         self.b_end = self.add_weight((n_classes, ),
                                      initializer='zero',
-                                     name='{}_b_end'.format(self.name),
+                                     name='b_end',
                                      regularizer=self.b_end_regularizer,
                                      constraint=self.b_end_constraint)
 
@@ -378,14 +356,15 @@ class ChainCRF(Layer):
         return sparse_chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
 
     def get_config(self):
-        config = {'init': self.init.__name__,
-                  'U_regularizer': self.U_regularizer.get_config() if self.U_regularizer else None,
-                  'b_start_regularizer': self.b_start_regularizer.get_config() if self.b_start_regularizer else None,
-                  'b_end_regularizer': self.b_end_regularizer.get_config() if self.b_end_regularizer else None,
-                  'U_constraint': self.U_constraint.get_config() if self.U_constraint else None,
-                  'b_start_constraint': self.b_start_constraint.get_config() if self.b_start_constraint else None,
-                  'b_end_constraint': self.b_end_constraint.get_config() if self.b_end_constraint else None,
-                  }
+        config = {
+            'init': initializers.serialize(self.init),
+            'U_regularizer': regularizers.serialize(self.U_regularizer),
+            'b_start_regularizer': regularizers.serialize(self.b_start_regularizer),
+            'b_end_regularizer': regularizers.serialize(self.b_end_regularizer),
+            'U_constraint': constraints.serialize(self.U_constraint),
+            'b_start_constraint': constraints.serialize(self.b_start_constraint),
+            'b_end_constraint': constraints.serialize(self.b_end_constraint)
+        }
         base_config = super(ChainCRF, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
 
@@ -394,10 +373,10 @@ def create_custom_objects():
     '''Returns the custom objects, needed for loading a persisted model.'''
     instanceHolder = {'instance': None}
 
-    class ClassWrapper(ChainCRF):
+    class ChainCRFClassWrapper(ChainCRF):
         def __init__(self, *args, **kwargs):
             instanceHolder['instance'] = self
-            super(ClassWrapper, self).__init__(*args, **kwargs)
+            super(ChainCRFClassWrapper, self).__init__(*args, **kwargs)
 
     def loss(*args):
         method = getattr(instanceHolder['instance'], 'loss')
@@ -407,32 +386,4 @@ def create_custom_objects():
         method = getattr(instanceHolder['instance'], 'sparse_loss')
         return method(*args)
 
-    return {'ChainCRF': ClassWrapper, 'loss': loss, 'sparse_loss': sparse_loss}
-
-
-
-
-if __name__ == '__main__':
-    from keras.models import Sequential
-    from keras.layers import Embedding
-    import numpy as np
-    vocab_size = 20
-    n_classes = 11
-    model = Sequential()
-    model.add(Embedding(vocab_size, n_classes))
-    layer = ChainCRF()
-    model.add(layer)
-    model.compile(loss=layer.loss, optimizer='sgd')
-
-    # Train first mini batch
-    batch_size, maxlen = 2, 2
-    x = np.random.randint(1, vocab_size, size=(batch_size, maxlen))
-    y = np.random.randint(n_classes, size=(batch_size, maxlen))
-    y = np.eye(n_classes)[y]
-    model.train_on_batch(x, y)
-    
-    
-    
-    print(x)
-    print(y)
-    
+    return {'ChainCRF': ChainCRFClassWrapper, 'ChainCRFClassWrapper': ChainCRFClassWrapper, 'loss': loss, 'sparse_loss': sparse_loss}

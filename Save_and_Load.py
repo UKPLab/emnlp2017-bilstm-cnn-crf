@@ -1,9 +1,6 @@
-# This file contain an example how to perform multi-task learning using the
-# BiLSTM-CNN-CRF implementation.
-# In the datasets variable, we specify two datasets: POS-tagging (unidep_pos) and conll2000_chunking.
-# The network will then train jointly on both datasets.
-# The network can on more datasets by adding more entries to the datasets dictionary.
-
+# This script trains the BiLSTM-CRF architecture for part-of-speech tagging
+# and stores it to disk. Then, it loads the model to continue the training.
+# For more details, see docs/Save_Load_Models.md
 from __future__ import print_function
 import os
 import logging
@@ -11,7 +8,6 @@ import sys
 from neuralnets.BiLSTM import BiLSTM
 from util.preprocessing import perpareDataset, loadDatasetPickle
 
-from keras import backend as K
 
 
 # :: Change into the working dir of the script ::
@@ -37,19 +33,16 @@ logger.addHandler(ch)
 #
 ######################################################
 datasets = {
-    'unidep_pos':
-        {'columns': {1:'tokens', 3:'POS'},
-         'label': 'POS',
-         'evaluate': True,
-         'commentSymbol': None},
-    'conll2000_chunking':
-        {'columns': {0:'tokens', 2:'chunk_BIO'},
-         'label': 'chunk_BIO',
-         'evaluate': True,
-         'commentSymbol': None},
+    'unidep_pos':                            #Name of the dataset
+        {'columns': {1:'tokens', 3:'POS'},   #CoNLL format for the input data. Column 1 contains tokens, column 3 contains POS information
+         'label': 'POS',                     #Which column we like to predict
+         'evaluate': True,                   #Should we evaluate on this task? Set true always for single task setups
+         'commentSymbol': None}              #Lines in the input data starting with this string will be skipped. Can be used to skip comments
 }
 
-embeddingsPath = 'komninos_english_embeddings.gz' #Word embeddings by Levy et al: https://levyomer.wordpress.com/2014/04/25/dependency-based-word-embeddings/
+
+# :: Path on your computer to the word embeddings. Embeddings by Komninos et al. will be downloaded automatically ::
+embeddingsPath = 'komninos_english_embeddings.gz'
 
 # :: Prepares the dataset to be used with the LSTM-network. Creates and stores cPickle files in the pkl/ folder ::
 pickleFile = perpareDataset(embeddingsPath, datasets)
@@ -68,12 +61,19 @@ embeddings, mappings, data = loadDatasetPickle(pickleFile)
 # Some network hyperparameters
 params = {'classifier': ['CRF'], 'LSTM-Size': [100], 'dropout': (0.25, 0.25)}
 
-
+print("Train the model with 1 Epoch and store to disk")
 model = BiLSTM(params)
 model.setMappings(mappings, embeddings)
 model.setDataset(datasets, data)
-model.modelSavePath = "models/[ModelName]_[DevScore]_[TestScore]_[Epoch].h5"
-model.fit(epochs=25)
+model.modelSavePath = "models/my_model_[Epoch].h5"
+model.fit(epochs=1)
 
+print("\n\n\n\n------------------------")
+print("Load the model and continue training")
+newModel = BiLSTM.loadModel('models/my_model_1.h5')
+newModel.setDataset(datasets, data)
+newModel.modelSavePath = "models/my_reloaded_model_[Epoch].h5"
+newModel.fit(epochs=1)
 
+print("retrained model store at "+newModel.modelSavePath)
 
