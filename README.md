@@ -1,22 +1,28 @@
 # BiLSTM-CNN-CRF Implementation for Sequence Tagging
 
-In the following repository you can find an BiLSTM-CRF implementation used for Sequence Tagging, e.g. POS-tagging, Chunking, or Named Entity Recognition. The implementation is based on Keras 2.1.5 and can be run with Tensorflow (1.7.0) as backend. It was optimized for Python 3.5 / 3.6. It does **not work** with Python 2.7.
+This repository contains a BiLSTM-CRF implementation that used for NLP Sequence Tagging (for example POS-tagging, Chunking, or Named Entity Recognition). The implementation is based on Keras 2.1.5 and can be run with Tensorflow 1.7.0 as backend. It was optimized for Python 3.5 / 3.6. It does **not work** with Python 2.7.
 
 The architecture is described in our papers:
  - [Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://arxiv.org/abs/1707.09861) 
  - [Optimal Hyperparameters for Deep LSTM-Networks for Sequence Labeling Tasks](https://arxiv.org/abs/1707.06799).
 
+The implementation is **highly configurable**, so you can tune the different hyperparameters easily. You can use it for **Single Task Learning** as well as different options for **Multi-Task Learning**. You can also use it for **Multilingual Learning** by using multilingual word embeddings.
 
-The hyperparameters of this network can be easily configured, so that you can re-run the proposed system by [Huang et al., Bidirectional LSTM-CRF Models for Sequence Tagging](https://arxiv.org/abs/1508.01991), [Ma and Hovy, End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF](https://arxiv.org/abs/1603.01354) and [Lample et al, Neural Architectures for Named Entity Recognition](https://arxiv.org/abs/1603.01360).
+This code can be used to run the systems proposed in the following papers:
+* [Huang et al., Bidirectional LSTM-CRF Models for Sequence Tagging](https://arxiv.org/abs/1508.01991) - You can choose between a softmax and a CRF classifier
+* [Ma and Hovy, End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF](https://arxiv.org/abs/1603.01354) - Character based word representations using CNNs is achieved by setting the parameter `charEmbeddings` to `CNN`
+* [Lample et al, Neural Architectures for Named Entity Recognition](https://arxiv.org/abs/1603.01360) - Character based word representations using LSTMs is achieved by setting the parameter `charEmbeddings` to `LSTM`
+* [Sogard, Goldberg: Deep multi-task learning with low level tasks supervised at lower layers](http://anthology.aclweb.org/P16-2038) - Train multiple task and supervise them on different levels.
 
-The implementation was optimized for **performance** using a smart shuffeling of the trainings data to group sentences with same length together. This increases the training speed by multiple factors in comparison to the implementations by Ma or Lample.
 
-The training of the network is simple and can easily be extended to new datasets and languages. For example, see [Train_POS.py](Train_POS.py).
+The implementation was optimized for **speed**: By grouping sentences with the same lengths together, this implementation is multiple factors faster than the systems by Ma et al. or Lample et al.
+
+The training of the network is simple and the neural network can easily be trained on new datasets. For an example, see [Train_POS.py](Train_POS.py).
 
 
-Pretrained models can be stored and loaded for inference. Simply execute `python RunModel.py models/modelname.h5 input.txt`. Pretrained-models for some sequence tagging task using this LSTM-CRF implementations are provided in [Pretrained Models](docs/Pretrained_Models.md).
+Trained models can be **stored** and **loaded** for inference. Simply execute `python RunModel.py models/modelname.h5 input.txt`. Pretrained-models for some sequence tagging task using this LSTM-CRF implementations are provided in [Pretrained Models](docs/Pretrained_Models.md).
 
-This implementation can be used for **Multi-Task Learning**, i.e. learning simultanously several task with non-overlapping datasets. The file [Train_MultiTask.py](Train_MultiTask.py) depicts an example, how the LSTM-CRF network can be used to learn POS-tagging and Chunking simultaneously. The number of tasks is not limited. Tasks can be supervised at the same level or at different output level, for example, to re-implement the approach by [Sogaard and Goldberg, Deep multi-task learning with low level tasks supervised at lower layers](http://anthology.aclweb.org/P16-2038).
+This implementation can be used for **Multi-Task Learning**, i.e. learning simultanously several task with non-overlapping datasets. The file [Train_MultiTask.py](Train_MultiTask.py) depicts an example, how the LSTM-CRF network can be used to learn POS-tagging and Chunking simultaneously. The number of tasks are not limited. Tasks can be supervised at the same level or at different output level.
  
 
 # Citation
