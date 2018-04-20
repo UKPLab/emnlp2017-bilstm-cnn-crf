@@ -2,6 +2,7 @@
 *.pyc
 *~
 *.gz
+*.h5
 
 .env
 .idea
@@ -9,8 +10,6 @@
 .pydevproject
 .project
 
-corpora/
-models/
 
 
 data/ace
