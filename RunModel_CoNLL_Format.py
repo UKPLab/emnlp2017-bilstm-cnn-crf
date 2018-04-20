@@ -2,11 +2,13 @@
 # This scripts loads a pretrained model and a input file in CoNLL format (each line a token, sentences separated by an empty line).
 # The input sentences are passed to the model for tagging. Prints the tokens and the tags in a CoNLL format to stdout
 # Usage: python RunModel_ConLL_Format.py modelPath inputPathToConllFile
-# For pretrained models see docs/Pretrained_Models.md
+# For pretrained models see docs/
 from __future__ import print_function
 from util.preprocessing import readCoNLL, createMatrices, addCharInformation, addCasingInformation
 from neuralnets.BiLSTM import BiLSTM
 import sys
+import logging
+
 
 if len(sys.argv) < 3:
     print("Usage: python RunModel.py modelPath inputPathToConllFile")
@@ -18,7 +20,6 @@ inputColumns = {0: "tokens"}
 
 
 # :: Prepare the input ::
-print("Read in file in CoNLL format with the column mapping: "+str(inputColumns))
 sentences = readCoNLL(inputPath, inputColumns)
 addCharInformation(sentences)
 addCasingInformation(sentences)

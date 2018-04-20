@@ -3,6 +3,8 @@
 *~
 *.gz
 
+.env
+.idea
 .settings
 .pydevproject
 .project

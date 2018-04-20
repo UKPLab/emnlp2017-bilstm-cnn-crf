@@ -17,7 +17,6 @@ modelPath = sys.argv[1]
 inputPath = sys.argv[2]
 
 # :: Read input ::
-print("Read .txt file "+ inputPath)
 with open(inputPath, 'r') as f:
     text = f.read()
 
