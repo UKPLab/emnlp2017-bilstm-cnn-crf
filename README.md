@@ -68,7 +68,7 @@ source env/bin/activate
 
 Install the requirements:
 ```
-.env/bin/pip3 install -r requirements.txt
+env/bin/pip3 install -r requirements.txt
 ```
 
 If everything works well, you can run `python3 Train_POS.py` to train a deep POS-tagger for the POS-tagset from universal dependencies.
