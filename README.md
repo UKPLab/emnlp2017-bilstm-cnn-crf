@@ -4,6 +4,7 @@ This repository contains a BiLSTM-CRF implementation that used for NLP Sequence 
 
 The architecture is described in our papers:
  - [Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://arxiv.org/abs/1707.09861) 
+ - [Why Comparing Single Performance Scores Does Not Allow to Draw Conclusions About Machine Learning Approaches](https://arxiv.org/abs/1803.09578)
  - [Optimal Hyperparameters for Deep LSTM-Networks for Sequence Labeling Tasks](https://arxiv.org/abs/1707.06799).
 
 The implementation is **highly configurable**, so you can tune the different hyperparameters easily. You can use it for **Single Task Learning** as well as different options for **Multi-Task Learning**. You can also use it for **Multilingual Learning** by using multilingual word embeddings.
@@ -67,7 +68,7 @@ source env/bin/activate
 
 Install the requirements:
 ```
-.env/bin/pip3 install -r requirements.txt
+env/bin/pip3 install -r requirements.txt
 ```
 
 If everything works well, you can run `python3 Train_POS.py` to train a deep POS-tagger for the POS-tagset from universal dependencies.
