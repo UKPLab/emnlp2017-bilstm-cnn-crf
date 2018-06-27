@@ -39,8 +39,8 @@ Trained on [CoNLL 2003](http://www.cnts.ua.ac.be/conll2003/ner/) and [GermEval 2
 | Language | Development (F1) | Test (F1) |
 |----------|:-----------:|:----:|
 |[English (CoNLL 2003)](https://public.ukp.informatik.tu-darmstadt.de/reimers/2017_SequenceTaggingModels/v2.1.5/EN_NER.h5) | 93.87% | 90.22% | 
-|[German (CoNLL 2003)](https://public.ukp.informatik.tu-darmstadt.de/reimers/2017_SequenceTaggingModels/v2.1.5/DE_NER_CoNLL.h5) | 80.12% | 77.52% | 
-|[German (GermEval 2014)](https://public.ukp.informatik.tu-darmstadt.de/reimers/2017_SequenceTaggingModels/v2.1.5/DE_NER_GermEval.h5) | 80.74% | 79.96% |
+|[German (CoNLL 2003)](https://public.ukp.informatik.tu-darmstadt.de/reimers/2017_SequenceTaggingModels/v2.1.5/DE_NER_CoNLL.h5) | 81.15% | 77.70% |
+|[German (GermEval 2014)](https://public.ukp.informatik.tu-darmstadt.de/reimers/2017_SequenceTaggingModels/v2.1.5/DE_NER_GermEval.h5) | 80.93% | 78.94% |
 
 
 ## Entities

@@ -86,6 +86,17 @@ class BiLSTM:
              
         self.casing2Idx = self.mappings['casing']
 
+        if self.params['charEmbeddings'] not in [None, "None", "none", False, "False", "false"]:
+            logging.info("Pad words to uniform length for characters embeddings")
+            all_sentences = []
+            for dataset in self.data.values():
+                for data in [dataset['trainMatrix'], dataset['devMatrix'], dataset['testMatrix']]:
+                    for sentence in data:
+                        all_sentences.append(sentence)
+
+            self.padCharacters(all_sentences)
+            logging.info("Words padded to %d characters" % (self.maxCharLen))
+
         
     def buildModel(self):
         self.models = {}
@@ -109,43 +120,39 @@ class BiLSTM:
 
         # :: Character Embeddings ::
         if self.params['charEmbeddings'] not in [None, "None", "none", False, "False", "false"]:
-            logging.info("Pad words to uniform length for characters embeddings")
-            all_sentences = []
-            for dataset in self.data.values():
-                for data in [dataset['trainMatrix'], dataset['devMatrix'], dataset['testMatrix']]:
-                    for sentence in data:
-                        all_sentences.append(sentence)
-
-            self.padCharacters(all_sentences)
-            logging.info("Words padded to %d characters" % (self.maxCharLen))
-            
             charset = self.mappings['characters']
             charEmbeddingsSize = self.params['charEmbeddingsSize']
             maxCharLen = self.maxCharLen
-            charEmbeddings= []
+            charEmbeddings = []
             for _ in charset:
-                limit = math.sqrt(3.0/charEmbeddingsSize)
-                vector = np.random.uniform(-limit, limit, charEmbeddingsSize) 
+                limit = math.sqrt(3.0 / charEmbeddingsSize)
+                vector = np.random.uniform(-limit, limit, charEmbeddingsSize)
                 charEmbeddings.append(vector)
-                
-            charEmbeddings[0] = np.zeros(charEmbeddingsSize) #Zero padding
+
+            charEmbeddings[0] = np.zeros(charEmbeddingsSize)  # Zero padding
             charEmbeddings = np.asarray(charEmbeddings)
-            
-            chars_input = Input(shape=(None,maxCharLen), dtype='int32', name='char_input')
-            chars = TimeDistributed(Embedding(input_dim=charEmbeddings.shape[0], output_dim=charEmbeddings.shape[1],  weights=[charEmbeddings], trainable=True, mask_zero=True), name='char_emd')(chars_input)
-            
-            if self.params['charEmbeddings'].lower() == 'lstm': #Use LSTM for char embeddings from Lample et al., 2016
+
+            chars_input = Input(shape=(None, maxCharLen), dtype='int32', name='char_input')
+            mask_zero = (self.params['charEmbeddings'].lower()=='lstm') #Zero mask only works with LSTM
+            chars = TimeDistributed(
+                Embedding(input_dim=charEmbeddings.shape[0], output_dim=charEmbeddings.shape[1],
+                          weights=[charEmbeddings],
+                          trainable=True, mask_zero=mask_zero), name='char_emd')(chars_input)
+
+            if self.params['charEmbeddings'].lower()=='lstm':  # Use LSTM for char embeddings from Lample et al., 2016
                 charLSTMSize = self.params['charLSTMSize']
-                chars = TimeDistributed(Bidirectional(LSTM(charLSTMSize, return_sequences=False)), name="char_lstm")(chars)
-            else: #Use CNNs for character embeddings from Ma and Hovy, 2016
+                chars = TimeDistributed(Bidirectional(LSTM(charLSTMSize, return_sequences=False)), name="char_lstm")(
+                    chars)
+            else:  # Use CNNs for character embeddings from Ma and Hovy, 2016
                 charFilterSize = self.params['charFilterSize']
                 charFilterLength = self.params['charFilterLength']
-                chars = TimeDistributed(Conv1D(charFilterSize, charFilterLength, padding='same'), name="char_cnn")(chars)
+                chars = TimeDistributed(Conv1D(charFilterSize, charFilterLength, padding='same'), name="char_cnn")(
+                    chars)
                 chars = TimeDistributed(GlobalMaxPooling1D(), name="char_pooling")(chars)
-            
+
+            self.params['featureNames'].append('characters')
             mergeInputLayers.append(chars)
             inputNodes.append(chars_input)
-            self.params['featureNames'].append('characters')
             
         # :: Task Identifier :: 
         if self.params['useTaskIdentifier']:
@@ -242,7 +249,7 @@ class BiLSTM:
             model = Model(inputs=inputNodes, outputs=[output])
             model.compile(loss=lossFct, optimizer=opt)
             
-            model.summary(line_length=200)
+            model.summary(line_length=125)
             #logging.info(model.get_config())
             #logging.info("Optimizer: %s - %s" % (str(type(model.optimizer)), str(model.optimizer.get_config())))
             

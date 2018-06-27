@@ -1,6 +1,6 @@
 # BiLSTM-CNN-CRF Implementation for Sequence Tagging
 
-This repository contains a BiLSTM-CRF implementation that used for NLP Sequence Tagging (for example POS-tagging, Chunking, or Named Entity Recognition). The implementation is based on Keras 2.1.5 and can be run with Tensorflow 1.7.0 as backend. It was optimized for Python 3.5 / 3.6. It does **not work** with Python 2.7.
+This repository contains a BiLSTM-CRF implementation that used for NLP Sequence Tagging (for example POS-tagging, Chunking, or Named Entity Recognition). The implementation is based on Keras 2.2.0 and can be run with Tensorflow 1.8.0 as backend. It was optimized for Python 3.5 / 3.6. It does **not work** with Python 2.7.
 
 The architecture is described in our papers:
  - [Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://arxiv.org/abs/1707.09861) 
