@@ -154,7 +154,7 @@ The following parameters exists:
 * **earlyStopping**: Early stoppig after certain number of epochs, if no improvement on the development set was achieved. Default value: 5
 * **miniBatchSize**: Size (Nr. of sentences) for mini-batch training. Default value: 32
 * **addFeatureDimensions**: Dimension for additional features, that are passed to the network. Default value: 10
-* **charEmbeddings**: Available options: [None, 'CNN', 'LSTM']. If set to `None`, no character-based representations will be used. With `CNN`, the approach by [Ma & Hovy](https://arxiv.org/abs/1603.01354) using a CNN will be used. With `LSTM`, an LSTM network will be used to derive the character-based representation ([Lample et al.](https://arxiv.org/abs/1603.01360)). Default value: `None`. Note, **charEmbeddings** does only work with Theano as backend.
+* **charEmbeddings**: Available options: [None, 'CNN', 'LSTM']. If set to `None`, no character-based representations will be used. With `CNN`, the approach by [Ma & Hovy](https://arxiv.org/abs/1603.01354) using a CNN will be used. With `LSTM`, an LSTM network will be used to derive the character-based representation ([Lample et al.](https://arxiv.org/abs/1603.01360)). Default value: `None`.
 	* **charEmbeddingsSize**: The dimension for characters, if the character-based representation is enabled. Default value: 30
 	* **charFilterSize**: If the CNN approach is used, this parameters defined the filter size, i.e. the output dimension of the convolution. Default: 30
 	* **charFilterLength**: If the CNN approach is used, this parameters defines the filter length. Default: 3
