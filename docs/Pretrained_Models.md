@@ -26,7 +26,7 @@ The depicted performance is accuracy.
 
 
 ## Chunking
-Trained on [CoNLL 2000 Chunking dataset](http://www.cnts.ua.ac.be/conll2000/chunking/). Performance is F1-score.
+Trained on [CoNLL 2000 Chunking dataset](hhttps://www.clips.uantwerpen.be/conll2000/chunking/). Performance is F1-score.
 
 | Language | Development (F1) | Test(F1) |
 |----------|:-----------:|:----:|
@@ -34,7 +34,7 @@ Trained on [CoNLL 2000 Chunking dataset](http://www.cnts.ua.ac.be/conll2000/chun
 
 
 ## NER
-Trained on [CoNLL 2003](http://www.cnts.ua.ac.be/conll2003/ner/) and [GermEval 2014](https://sites.google.com/site/germeval2014ner/)
+Trained on [CoNLL 2003](https://www.clips.uantwerpen.be/conll2003/ner/) and [GermEval 2014](https://sites.google.com/site/germeval2014ner/)
 
 | Language | Development (F1) | Test (F1) |
 |----------|:-----------:|:----:|
