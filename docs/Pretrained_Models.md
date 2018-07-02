@@ -4,7 +4,7 @@ In the following some pre-trained models are provided for different common seque
 python RunModel.py modelname.h5 input.txt
 ```
 
-For the English models, we used the word embeddings by [Komninos et al.](https://www.cs.york.ac.uk/nlp/extvec/). For the German files, we used the word embeddings by [Reimers et al.](https://www.ukp.tu-darmstadt.de/research/ukp-in-challenges/germeval-2014/)
+For the English models, we used the word embeddings by [Komninos et al.](https://www.cs.york.ac.uk/nlp/extvec/). For the German files, we used the word embeddings by [Reimers et al.](https://www.informatik.tu-darmstadt.de/ukp/research_6/ukp_in_challenges/germeval_2014/index.en.jsp).
 
 
 ## POS
