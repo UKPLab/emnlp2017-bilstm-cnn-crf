@@ -101,29 +101,7 @@ def convertIOBEStoBIO(dataset):
             elif firstChar == 'E':
                 sentence[pos] = 'I'+sentence[pos][1:]
                 
-def testEncodings():
-    """ Tests BIO, IOB and IOBES encoding """
-    
-    goldBIO   = [['O', 'B-PER', 'I-PER', 'O', 'B-PER', 'B-PER', 'I-PER'], ['O', 'B-PER', 'B-LOC', 'I-LOC', 'O', 'B-PER', 'I-PER', 'I-PER'], ['B-LOC', 'I-LOC', 'I-LOC', 'B-PER', 'B-PER', 'I-PER', 'I-PER', 'O', 'B-LOC', 'B-PER']]
-    
-    
-    print("--Test IOBES--")
-    goldIOBES = [['O', 'B-PER', 'E-PER', 'O', 'S-PER', 'B-PER', 'E-PER'], ['O', 'S-PER', 'B-LOC', 'E-LOC', 'O', 'B-PER', 'I-PER', 'E-PER'], ['B-LOC', 'I-LOC', 'E-LOC', 'S-PER', 'B-PER', 'I-PER', 'E-PER', 'O', 'S-LOC', 'S-PER']]
-    convertIOBEStoBIO(goldIOBES)
-    
-    for sentenceIdx in range(len(goldBIO)):
-        for tokenIdx in range(len(goldBIO[sentenceIdx])):
-            assert(goldBIO[sentenceIdx][tokenIdx] == goldIOBES[sentenceIdx][tokenIdx])
-            
-    print("--Test IOB--")        
-    goldIOB   = [['O', 'I-PER', 'I-PER', 'O', 'I-PER', 'B-PER', 'I-PER'], ['O', 'I-PER', 'I-LOC', 'I-LOC', 'O', 'I-PER', 'I-PER', 'I-PER'], ['I-LOC', 'I-LOC', 'I-LOC', 'I-PER', 'B-PER', 'I-PER', 'I-PER', 'O', 'I-LOC', 'I-PER']]
-    convertIOBtoBIO(goldIOB)
-    
-    for sentenceIdx in range(len(goldBIO)):
-        for tokenIdx in range(len(goldBIO[sentenceIdx])):
-            assert(goldBIO[sentenceIdx][tokenIdx] == goldIOB[sentenceIdx][tokenIdx])
-            
-    print("test encodings completed")
+
     
 
 
@@ -212,91 +190,35 @@ def checkBIOEncoding(predictions, correctBIOErrors):
         logging.info("Wrong BIO-Encoding %d/%d labels, %.2f%%" % (errors, labels, errors/float(labels)*100),)
 
 
-def compute_f1_argument(predictions, correct, idx2Label):     
-    prec = compute_argument_chunk_precision(predictions, correct)
-    rec = compute_argument_chunk_precision(correct, predictions)
-    
-    f1 = 0
-    if (rec+prec) > 0:
-        f1 = 2.0 * prec * rec / (prec + rec);
-        
-    return prec, rec, f1
+def testEncodings():
+    """ Tests BIO, IOB and IOBES encoding """
 
-def compute_f1_argument_token_basis(predictions, correct, idx2Label):     
-    prec = compute_argument_token_precision(predictions, correct)
-    rec = compute_argument_token_precision(correct, predictions)
-    
-    f1 = 0
-    if (rec+prec) > 0:
-        f1 = 2.0 * prec * rec / (prec + rec);
-        
-    return prec, rec, f1
+    goldBIO = [['O', 'B-PER', 'I-PER', 'O', 'B-PER', 'B-PER', 'I-PER'],
+               ['O', 'B-PER', 'B-LOC', 'I-LOC', 'O', 'B-PER', 'I-PER', 'I-PER'],
+               ['B-LOC', 'I-LOC', 'I-LOC', 'B-PER', 'B-PER', 'I-PER', 'I-PER', 'O', 'B-LOC', 'B-PER']]
 
-def compute_argument_token_precision(predictions, correct):
-    count = 0
-    correctCount = 0
-    
-    for sentenceIdx in range(len(predictions)):
-        for tokenIdx in range(len(predictions[sentenceIdx])):
-            for argIdx in range(len(predictions[sentenceIdx][tokenIdx])):
-                pred = predictions[sentenceIdx][tokenIdx][argIdx]
-                corr = correct[sentenceIdx][tokenIdx][argIdx]
-                
-                if pred:
-                    count += 1
-                    
-                    if pred == corr:
-                        correctCount += 1
-    
-    if count == 0:
-        return 0
-    
-    return correctCount / float(count)
+    print("--Test IOBES--")
+    goldIOBES = [['O', 'B-PER', 'E-PER', 'O', 'S-PER', 'B-PER', 'E-PER'],
+                 ['O', 'S-PER', 'B-LOC', 'E-LOC', 'O', 'B-PER', 'I-PER', 'E-PER'],
+                 ['B-LOC', 'I-LOC', 'E-LOC', 'S-PER', 'B-PER', 'I-PER', 'E-PER', 'O', 'S-LOC', 'S-PER']]
+    convertIOBEStoBIO(goldIOBES)
 
-def compute_argument_chunk_precision(guessed_sentences, correct_sentences):
-    assert(len(guessed_sentences) == len(correct_sentences))
-    correctCount = 0
-    count = 0
-    
-    
-    for sentenceIdx in range(len(guessed_sentences)):
-        assert(len(guessed_sentences[sentenceIdx]) == len(correct_sentences[sentenceIdx]))
-        
-        for argIdx in range(len(guessed_sentences[sentenceIdx][0])):
-            idx = 0
-            guessed = guessed_sentences[sentenceIdx]
-            correct = correct_sentences[sentenceIdx]
-            while idx < len(guessed):
-                if guessed[idx][argIdx]: #A new chunk starts
-                    count += 1
-                    
-                    if guessed[idx][argIdx] == correct[idx][argIdx]:
-                        idx += 1
-                        correctlyFound = True
-                        
-                        while idx < len(guessed) and guessed[idx][argIdx]: #Scan until it no longer starts with I
-                            if guessed[idx][argIdx] != correct[idx][argIdx]:
-                                correctlyFound = False
-                            
-                            idx += 1
-                        
-                        if idx < len(guessed):
-                            if correct[idx][argIdx]: #The chunk in correct was longer
-                                correctlyFound = False
-                            
-                        
-                        if correctlyFound:
-                            correctCount += 1
-                    else:
-                        idx += 1
-                else:  
-                    idx += 1
-    
-    precision = 0
-    if count > 0:    
-        precision = float(correctCount) / count
-        
-    return precision
+    for sentenceIdx in range(len(goldBIO)):
+        for tokenIdx in range(len(goldBIO[sentenceIdx])):
+            assert (goldBIO[sentenceIdx][tokenIdx]==goldIOBES[sentenceIdx][tokenIdx])
+
+    print("--Test IOB--")
+    goldIOB = [['O', 'I-PER', 'I-PER', 'O', 'I-PER', 'B-PER', 'I-PER'],
+               ['O', 'I-PER', 'I-LOC', 'I-LOC', 'O', 'I-PER', 'I-PER', 'I-PER'],
+               ['I-LOC', 'I-LOC', 'I-LOC', 'I-PER', 'B-PER', 'I-PER', 'I-PER', 'O', 'I-LOC', 'I-PER']]
+    convertIOBtoBIO(goldIOB)
+
+    for sentenceIdx in range(len(goldBIO)):
+        for tokenIdx in range(len(goldBIO[sentenceIdx])):
+            assert (goldBIO[sentenceIdx][tokenIdx]==goldIOB[sentenceIdx][tokenIdx])
+
+    print("test encodings completed")
+
 
 
 if __name__ == "__main__":

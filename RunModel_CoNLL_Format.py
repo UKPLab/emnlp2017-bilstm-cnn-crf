@@ -11,7 +11,7 @@ import logging
 
 
 if len(sys.argv) < 3:
-    print("Usage: python RunModel.py modelPath inputPathToConllFile")
+    print("Usage: python RunModel_CoNLL_Format.py modelPath inputPathToConllFile")
     exit()
 
 modelPath = sys.argv[1]
