@@ -54,7 +54,7 @@ Don't hesitate to send us an e-mail or report an issue, if something is broken (
 > This repository contains experimental software and is published for the sole purpose of giving additional background details on the respective publication. 
 
 # Setup
-In order to run the code, I recommend Python 3.5 or higher. The code is based on Keras 2.1.5 and as backend I recommend Tensorflow 1.7.0. I cannot ensure that the code works with different versions for Keras / Tensorflow or with different backends for Keras. The code does not work with Python 2.7.
+In order to run the code, I recommend Python 3.5 or higher. The code is based on Keras 2.2.0 and as backend I recommend Tensorflow 1.8.0. I cannot ensure that the code works with different versions for Keras / Tensorflow or with different backends for Keras. The code **does not** work with Python 2.7.
 
 
 
