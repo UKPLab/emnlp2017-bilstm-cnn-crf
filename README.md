@@ -25,6 +25,8 @@ Trained models can be **stored** and **loaded** for inference. Simply execute `p
 
 This implementation can be used for **Multi-Task Learning**, i.e. learning simultanously several task with non-overlapping datasets. The file [Train_MultiTask.py](Train_MultiTask.py) depicts an example, how the LSTM-CRF network can be used to learn POS-tagging and Chunking simultaneously. The number of tasks are not limited. Tasks can be supervised at the same level or at different output level.
  
+ 
+ **Note:** The repository [elmo-bilstm-cnn-crf](https://github.com/UKPLab/elmo-bilstm-cnn-crf) contains an extension of this architecture to work with the ELMo representations from AllenNLP (from the Paper: Peters et al., 2018, [Deep contextualized word representations](http://arxiv.org/abs/1802.05365)). ELMo representations are computationally expensive to compute, but they usually improve the performance by about 1-5 percentage points F1-measure.
 
 # Citation
 If you find the implementation useful, please cite the following paper: [Reporting Score Distributions Makes a Difference: Performance Study of LSTM-networks for Sequence Tagging](https://arxiv.org/abs/1707.09861)
