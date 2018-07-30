@@ -419,7 +419,7 @@ class BiLSTM:
                     self.resultsSavePath.write("\n")
                     self.resultsSavePath.flush()
                 
-                logging.info("Max: %.4f dev; %.4f test" % (max_dev_score[modelName], max_test_score[modelName]))
+                logging.info("\nScores from epoch with best dev-scores:\n  Dev-Score: %.4f\n  Test-Score %.4f" % (max_dev_score[modelName], max_test_score[modelName]))
                 logging.info("")
                 
             logging.info("%.2f sec for evaluation" % (time.time() - start_time))
