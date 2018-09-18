@@ -114,13 +114,13 @@ def readEmbeddings(embeddingsPath, datasetFiles, frequencyThresholdUnknownTokens
                     vocab[wordLower] = True
                     vocab[wordNormalized] = True
 
-        for dataset in datasetFiles:
-            dataColumnsIdx = {y: x for x, y in dataset['cols'].items()}
+        for dataset_name, dataset in datasetFiles.items():
+            dataColumnsIdx = {y: x for x, y in dataset['columns'].items()}
             tokenIdx = dataColumnsIdx['tokens']
-            datasetPath = 'data/%s/' % dataset['name']
+            datasetPath = 'data/%s/' % dataset_name
 
-            for dataset in ['train.txt', 'dev.txt', 'test.txt']:
-                createDict(datasetPath + dataset, tokenIdx, neededVocab)
+            for dataset_file_name in ['train.txt', 'dev.txt', 'test.txt']:
+                createDict(datasetPath + dataset_file_name, tokenIdx, neededVocab)
 
     # :: Read in word embeddings ::
     logging.info("Read file: %s" % embeddingsPath)
