@@ -166,7 +166,7 @@ def checkBIOEncoding(predictions, correctBIOErrors):
                 labelStarted = True
                 labelClass = label[2:]
             
-            elif label == 'O':
+            elif label.startswith('O'):
                 labelStarted = False
                 labelClass = None
             elif label.startswith('I-'):
