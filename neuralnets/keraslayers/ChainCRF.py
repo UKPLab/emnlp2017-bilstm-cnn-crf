@@ -170,7 +170,7 @@ def _backward(gamma, mask):
         y_t = batch_gather(gamma_t, y_tm1)
         return y_t, [K.expand_dims(y_t, 0)]
 
-    initial_states = [K.expand_dims(K.zeros_like(gamma[:, 0, 0]), 0)]
+    initial_states = [K.expand_dims(K.zeros_like(gamma[:, 0, 0], dtype='int32'), 0)]
     _, y_rev, _ = K.rnn(_backward_step,
                         gamma,
                         initial_states,
@@ -310,19 +310,19 @@ class ChainCRF(Layer):
         self.input_spec = [InputSpec(dtype=K.floatx(),
                                      shape=(None, n_steps, n_classes))]
 
-        self.U = self.add_weight((n_classes, n_classes),
+        self.U = self.add_weight(shape=(n_classes, n_classes),
                                  initializer=self.init,
                                  name='U',
                                  regularizer=self.U_regularizer,
                                  constraint=self.U_constraint)
 
-        self.b_start = self.add_weight((n_classes, ),
+        self.b_start = self.add_weight(shape=(n_classes, ),
                                        initializer='zero',
                                        name='b_start',
                                        regularizer=self.b_start_regularizer,
                                        constraint=self.b_start_constraint)
 
-        self.b_end = self.add_weight((n_classes, ),
+        self.b_end = self.add_weight(shape=(n_classes, ),
                                      initializer='zero',
                                      name='b_end',
                                      regularizer=self.b_end_regularizer,
