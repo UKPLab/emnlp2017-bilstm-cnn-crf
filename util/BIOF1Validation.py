@@ -1,5 +1,6 @@
 from __future__ import print_function
 import logging
+from seqeval.metrics import classification_report
 """
 Computes the F1 score on BIO tagged data
 
@@ -64,7 +65,7 @@ def compute_f1(predictions, correct, idx2Label, correctBIOErrors='No', encodingS
         convertIOBtoBIO(label_correct)
             
                     
-    
+    print(classification_report(label_correct, label_pred, output_dict=True))
           
     checkBIOEncoding(label_pred, correctBIOErrors)
 
@@ -166,7 +167,7 @@ def checkBIOEncoding(predictions, correctBIOErrors):
                 labelStarted = True
                 labelClass = label[2:]
             
-            elif label == 'O':
+            elif label.startswith('O'):
                 labelStarted = False
                 labelClass = None
             elif label.startswith('I-'):
